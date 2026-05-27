@@ -1,8 +1,25 @@
 class Criterion {
   final String name;
   final double maxScore100;
+  final String? id;
+  final String? requirementId;
+  final String? requirementTitle;
+  final String? fullDescription;
+  final String? partialDescription;
+  final String? failDescription;
+  final List<String>? commonErrors;
 
-  Criterion(this.name, this.maxScore100);
+  Criterion(
+    this.name,
+    this.maxScore100, {
+    this.id,
+    this.requirementId,
+    this.requirementTitle,
+    this.fullDescription,
+    this.partialDescription,
+    this.failDescription,
+    this.commonErrors,
+  });
 
   double get maxScore10 => maxScore100 / 10;
 }

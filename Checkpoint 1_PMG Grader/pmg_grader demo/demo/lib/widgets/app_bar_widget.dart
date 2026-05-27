@@ -10,6 +10,9 @@ class AppBarWidget extends StatelessWidget {
   final bool hasSubmissions;
   final Submission? currentSubmission;
   final String? sessionName;
+  final String? selectedMarker;
+  final List<String> markers;
+  final Function(String?) onMarkerChanged;
 
   const AppBarWidget({
     super.key,
@@ -20,6 +23,9 @@ class AppBarWidget extends StatelessWidget {
     required this.hasSubmissions,
     this.currentSubmission,
     this.sessionName,
+    this.selectedMarker,
+    this.markers = const [],
+    required this.onMarkerChanged,
   });
 
   @override
@@ -91,12 +97,12 @@ class AppBarWidget extends StatelessWidget {
             ),
           ],
           const Spacer(),
-          // Current Marker Display
+          // Marker Selection Dropdown
           Container(
-            width: 240,
+            width: 300,
             height: 40,
             margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(20),
@@ -106,17 +112,39 @@ class AppBarWidget extends StatelessWidget {
               children: [
                 const Icon(Icons.person_rounded, size: 18, color: Color(0xFF6366F1)),
                 const SizedBox(width: 8),
+                Text(
+                  'Người chấm: ',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
                 Expanded(
-                  child: Text(
-                    currentSubmission?.marker ?? (markerController.text.isNotEmpty 
-                        ? markerController.text 
-                        : 'Chưa có người chấm'),
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF1E293B),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedMarker,
+                      hint: Text(
+                        markers.isEmpty ? 'Không có dữ liệu' : 'Chọn người chấm',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                      isExpanded: true,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1E293B),
+                      ),
+                      items: markers.map((marker) {
+                        return DropdownMenuItem<String>(
+                          value: marker,
+                          child: Text(marker),
+                        );
+                      }).toList(),
+                      onChanged: markers.isEmpty ? null : onMarkerChanged,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

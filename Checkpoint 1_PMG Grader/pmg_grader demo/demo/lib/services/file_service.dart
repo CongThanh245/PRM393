@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:excel/excel.dart' as excel_pkg;
+import '../models/exam_type.dart';
 import '../models/submission.dart';
 
 class FileService {
@@ -194,6 +195,78 @@ class FileService {
     return null;
   }
 
+  List<Criterion> parseImportRubricCriteria(String text) {
+    final lines = text
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    final criteria = <Criterion>[];
+    String? currentRequirementId;
+    String? currentRequirementTitle;
+    Map<String, String>? currentCriterion;
+    List<String> currentCommonErrors = [];
+
+    void flushCriterion() {
+      if (currentCriterion == null) return;
+      final title = currentCriterion!['title'];
+      final pointsText = currentCriterion!['max_points'];
+      if (title != null && pointsText != null) {
+        criteria.add(Criterion(
+          title,
+          double.tryParse(pointsText.replaceAll(',', '.')) ?? 0.0,
+          id: currentCriterion!['id'],
+          requirementId: currentRequirementId,
+          requirementTitle: currentRequirementTitle,
+          fullDescription: currentCriterion!['level_full_description'],
+          partialDescription: currentCriterion!['level_partial_description'],
+          failDescription: currentCriterion!['level_fail_description'],
+          commonErrors: currentCommonErrors.isNotEmpty ? List.from(currentCommonErrors) : null,
+        ));
+      }
+      currentCriterion = null;
+      currentCommonErrors = [];
+    }
+
+    for (final line in lines) {
+      if (line.startsWith('[') && line.endsWith(']')) {
+        final marker = line.substring(1, line.length - 1);
+        if (marker == 'REQUIREMENT') {
+          flushCriterion();
+          currentRequirementId = null;
+          currentRequirementTitle = null;
+          currentCommonErrors = [];
+        } else if (marker == 'CRITERION') {
+          flushCriterion();
+          currentCriterion = <String, String>{};
+        } else if (marker == 'COMMON_ERRORS') {
+          flushCriterion();
+          currentCommonErrors = [];
+        } else {
+          flushCriterion();
+        }
+        continue;
+      }
+
+      final separatorIndex = line.indexOf('=');
+      if (separatorIndex <= 0) continue;
+      final key = line.substring(0, separatorIndex).trim();
+      final value = line.substring(separatorIndex + 1).trim();
+
+      if (key.startsWith('error_')) {
+        currentCommonErrors.add(value);
+      } else if (currentCriterion != null) {
+        currentCriterion![key] = value;
+      } else {
+        if (key == 'id') currentRequirementId = value;
+        if (key == 'title') currentRequirementTitle = value;
+      }
+    }
+
+    flushCriterion();
+    return criteria;
+  }
+
   Future<String?> extractMarkerName(String path) async {
     try {
       final bytes = File(path).readAsBytesSync();
@@ -300,5 +373,97 @@ class FileService {
       // Ignore or log error
     }
     return mappings;
+  }
+
+  Future<Map<String, int>> extractMarkerWorkload(String path) async {
+    final Map<String, int> workload = {};
+    try {
+      final bytes = File(path).readAsBytesSync();
+      var excel = excel_pkg.Excel.decodeBytes(bytes);
+      for (var table in excel.tables.keys) {
+        var sheet = excel.tables[table];
+        if (sheet == null || sheet.maxRows == 0) continue;
+
+        // Find "Marker" column index
+        int markerColIndex = -1;
+        int headerRow = -1;
+
+        final searchLimit = sheet.maxRows > 5 ? 5 : sheet.maxRows;
+        for (int r = 0; r < searchLimit; r++) {
+          final row = sheet.rows[r];
+          for (int c = 0; c < row.length; c++) {
+            final val = row[c]?.value?.toString().trim().toLowerCase();
+            if (val == 'marker' || val == 'người chấm' || val == 'nguoi cham') {
+              markerColIndex = c;
+              headerRow = r;
+              break;
+            }
+          }
+          if (markerColIndex != -1) break;
+        }
+
+        // If marker column found, count workload
+        if (markerColIndex != -1 && headerRow != -1) {
+          for (int r = headerRow + 1; r < sheet.maxRows; r++) {
+            final row = sheet.rows[r];
+            if (row.length > markerColIndex) {
+              final marker = row[markerColIndex]?.value?.toString().trim();
+              if (marker != null && marker.isNotEmpty) {
+                workload[marker] = (workload[marker] ?? 0) + 1;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore or log error
+    }
+    return workload;
+  }
+
+  Future<List<String>> extractMarkersList(String path) async {
+    final Set<String> markers = {};
+    try {
+      final bytes = File(path).readAsBytesSync();
+      var excel = excel_pkg.Excel.decodeBytes(bytes);
+      for (var table in excel.tables.keys) {
+        var sheet = excel.tables[table];
+        if (sheet == null || sheet.maxRows == 0) continue;
+
+        // Find "Marker" column index
+        int markerColIndex = -1;
+        int headerRow = -1;
+
+        final searchLimit = sheet.maxRows > 5 ? 5 : sheet.maxRows;
+        for (int r = 0; r < searchLimit; r++) {
+          final row = sheet.rows[r];
+          for (int c = 0; c < row.length; c++) {
+            final val = row[c]?.value?.toString().trim().toLowerCase();
+            if (val == 'marker' || val == 'người chấm' || val == 'nguoi cham') {
+              markerColIndex = c;
+              headerRow = r;
+              break;
+            }
+          }
+          if (markerColIndex != -1) break;
+        }
+
+        // If marker column found, extract unique markers
+        if (markerColIndex != -1 && headerRow != -1) {
+          for (int r = headerRow + 1; r < sheet.maxRows; r++) {
+            final row = sheet.rows[r];
+            if (row.length > markerColIndex) {
+              final marker = row[markerColIndex]?.value?.toString().trim();
+              if (marker != null && marker.isNotEmpty) {
+                markers.add(marker);
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore or log error
+    }
+    return markers.toList()..sort();
   }
 }

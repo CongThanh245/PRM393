@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/session_service.dart';
 import '../services/file_service.dart';
+import '../services/grading_export_service.dart';
+import '../models/submission.dart';
 import 'main_screen.dart';
 
 // ─── Colour tokens ────────────────────────────────────────────────────────────
@@ -352,6 +354,20 @@ class _SessionCardState extends State<_SessionCard> {
                     ),
                     const SizedBox(height: 8),
                     _ActionBtn(
+                      icon: Icons.assignment_ind_outlined,
+                      tooltip: 'Phân chia bài',
+                      color: _kAccent,
+                      onTap: () => _showWorkloadDialog(widget.session),
+                    ),
+                    const SizedBox(height: 8),
+                    _ActionBtn(
+                      icon: Icons.file_download_outlined,
+                      tooltip: 'Xuất Excel',
+                      color: _kSuccess,
+                      onTap: () => _exportSession(widget.session),
+                    ),
+                    const SizedBox(height: 8),
+                    _ActionBtn(
                       icon: Icons.delete_outline_rounded,
                       tooltip: 'Xoá',
                       color: Colors.redAccent,
@@ -374,6 +390,167 @@ class _SessionCardState extends State<_SessionCard> {
     if (diff.inDays < 1) return '${diff.inHours} giờ trước';
     if (diff.inDays < 7) return '${diff.inDays} ngày trước';
     return '${dt.day}/${dt.month}/${dt.year}';
+  }
+
+  Future<void> _exportSession(GradingSession session) async {
+    final progress = await SessionService().loadSessionProgress(session.id);
+    if (progress == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không có dữ liệu chấm để xuất')),
+        );
+      }
+      return;
+    }
+
+    final submissionsData = progress['submissions'] as List<dynamic>;
+    if (submissionsData.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không có bài nộp để xuất')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final exportService = GradingExportService();
+      final submissions = submissionsData.map((data) {
+        return Submission(
+          fileName: data['fileName'] as String,
+          filePath: '',
+          content: '',
+        )..scores = (data['scores'] as List<dynamic>).map((e) => (e as num).toDouble()).toList()
+        ..comment = data['comment'] as String? ?? ''
+        ..graded = data['graded'] as bool? ?? false;
+      }).toList();
+
+      final markerName = session.markerName ?? 'Unknown';
+      await exportService.exportToExcel(submissions, markerName);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Xuất Excel thành công!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi khi xuất Excel: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showWorkloadDialog(GradingSession session) async {
+    if (session.markInputXlsxPath == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Phiên này không có file Mark Input')),
+        );
+      }
+      return;
+    }
+
+    final workload = await FileService().extractMarkerWorkload(session.markInputXlsxPath!);
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: 500,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.assignment_ind_outlined, color: _kAccent, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Phân chia bài chấm',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _kTextPrimary,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              if (workload.isEmpty)
+                Text(
+                  'Không có dữ liệu phân chia bài',
+                  style: GoogleFonts.inter(color: _kTextSecondary),
+                )
+              else ...[
+                Text(
+                  'Thống kê workload (số bài mỗi người chấm):',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _kTextPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...workload.entries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.person_outline_rounded, size: 16, color: _kTextSecondary),
+                            const SizedBox(width: 8),
+                            Text(
+                              entry.key,
+                              style: GoogleFonts.inter(color: _kTextPrimary),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _kPrimary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${entry.value} bài',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w600,
+                              color: _kPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
+                Text(
+                  'Tổng: ${workload.values.fold(0, (sum, count) => sum + count)} bài',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: _kTextSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -418,10 +595,30 @@ class _ImportFilesDialogState extends State<_ImportFilesDialog> {
 
   Future<void> _confirm() async {
     setState(() => _busy = true);
-    String? extractedMarker;
-    if (_xlsxPath != null) {
-      extractedMarker = await FileService().extractMarkerName(_xlsxPath!);
+
+    // Validate required files
+    if (_docPath == null) {
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn file Grading Guide')),
+      );
+      return;
     }
+    if (_xlsxPath == null) {
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn file Mark Input')),
+      );
+      return;
+    }
+    if (_zipPath == null) {
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn file Student Zip')),
+      );
+      return;
+    }
+
     final session = widget.sessionService.createNewSession().copyWith(
       name: _nameCtrl.text.trim().isNotEmpty
           ? _nameCtrl.text.trim()
@@ -431,9 +628,21 @@ class _ImportFilesDialogState extends State<_ImportFilesDialog> {
       examImagePath: _pngPath,
       studentZipPath: _zipPath,
       examCode: null,
-      markerName: extractedMarker,
+      markerName: null,
     );
     widget.onConfirm(session);
+  }
+
+  Color _getNameFieldBorderColor(String value) {
+    if (value.isEmpty) return const Color(0xFFE2E8F0);
+    if (value.length > 100) return const Color(0xFFDC2626);
+    return const Color(0xFF10B981);
+  }
+
+  String? _getNameFieldError(String value) {
+    if (value.isEmpty) return null;
+    if (value.length > 100) return 'Tên phiên không quá 100 ký tự';
+    return null;
   }
 
   
@@ -513,6 +722,9 @@ class _ImportFilesDialogState extends State<_ImportFilesDialog> {
                   TextField(
                     controller: _nameCtrl,
                     style: GoogleFonts.inter(color: _kTextPrimary, fontSize: 14),
+                    onChanged: (value) {
+                      setState(() {});
+                    },
                     decoration: InputDecoration(
                       hintText: 'VD: Chấm giữa kỳ - SE1857',
                       hintStyle: GoogleFonts.inter(color: _kTextSecondary, fontSize: 14),
@@ -520,17 +732,19 @@ class _ImportFilesDialogState extends State<_ImportFilesDialog> {
                       fillColor: _kCard,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: _kBorder),
+                        borderSide: BorderSide(color: _getNameFieldBorderColor(_nameCtrl.text)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: _kBorder),
+                        borderSide: BorderSide(color: _getNameFieldBorderColor(_nameCtrl.text)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: _kPrimary, width: 1.5),
+                        borderSide: BorderSide(color: _getNameFieldBorderColor(_nameCtrl.text), width: 1.5),
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      errorText: _getNameFieldError(_nameCtrl.text),
+                      errorStyle: GoogleFonts.inter(fontSize: 10, color: const Color(0xFFDC2626)),
                     ),
                   ),
 

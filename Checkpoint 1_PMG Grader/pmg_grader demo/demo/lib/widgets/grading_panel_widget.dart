@@ -13,6 +13,7 @@ class GradingPanelWidget extends StatefulWidget {
   final TextEditingController commentController;
   final bool hasNext;
   final ValueChanged<String> onRubricChanged;
+  final String? selectedMarker;
 
   const GradingPanelWidget({
     super.key,
@@ -24,6 +25,7 @@ class GradingPanelWidget extends StatefulWidget {
     required this.commentController,
     required this.hasNext,
     required this.onRubricChanged,
+    this.selectedMarker,
   });
 
   @override
@@ -257,117 +259,9 @@ class _GradingPanelWidgetState extends State<GradingPanelWidget> {
           ),
         ),
         const SizedBox(height: 12),
-        // List questions and point limits in a nice clean container
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFF1F5F9)),
-          ),
-          child: Column(
-            children: [
-              ...exam.criteria.asMap().entries.map((entry) {
-                final c = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        c.name,
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF334155),
-                        ),
-                      ),
-                      Text(
-                        '${c.maxScore10.toStringAsFixed(1)} điểm',
-                        style: GoogleFonts.outfit(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF6366F1),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-              const Divider(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Tổng cộng',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0F172A),
-                    ),
-                  ),
-                  Text(
-                    '${exam.totalMaxScore10.toStringAsFixed(1)} điểm',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'TIÊU CHÍ CHẤM ĐIỂM (RUBRIC)',
-          style: GoogleFonts.outfit(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF94A3B8),
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Thông tin được trích xuất tự động từ file Word (.docx) của phiên chấm. Bạn có thể chỉnh sửa trực tiếp nội dung dưới đây để AI cập nhật tiêu chí chấm tức thì:',
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            height: 1.5,
-            color: const Color(0xFF64748B),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _rubricController,
-          maxLines: 18,
-          minLines: 10,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            hintText: 'Nhập hoặc trích xuất tiêu chí chấm điểm tại đây...',
-            hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
-            contentPadding: const EdgeInsets.all(12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF6366F1)),
-            ),
-          ),
-          style: GoogleFonts.inter(
-            fontSize: 12.5,
-            height: 1.5,
-            color: const Color(0xFF1E293B),
-          ),
-        ),
+        ..._buildOverviewRequirementCards(exam),
+        const SizedBox(height: 16),
+        _buildTotalOverviewCard(exam),
       ],
     );
   }
@@ -440,19 +334,8 @@ class _GradingPanelWidgetState extends State<GradingPanelWidget> {
             ),
           ),
           const SizedBox(height: 12),
-          // Render AI scores dynamically as expandable items
-          ...exam.criteria.asMap().entries.map((entry) {
-            final index = entry.key;
-            final c = entry.value;
-            final scoreVal = index < sub.aiScores.length ? sub.aiScores[index] : 0.0;
-            final commentVal = index < sub.aiComments.length ? sub.aiComments[index] : "";
-            return _buildAiScoreExpansionTile(
-              c.name,
-              scoreVal,
-              c.maxScore10,
-              commentVal,
-            );
-          }),
+          // Render AI scores grouped by requirement
+          ..._buildAiScoreGroupRows(exam, sub),
           const Divider(height: 32),
           Text(
             'Nhận xét AI:',
@@ -515,7 +398,7 @@ class _GradingPanelWidgetState extends State<GradingPanelWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Marker information
-        if (widget.submission.marker != null) ...[
+        if (widget.selectedMarker != null && widget.selectedMarker!.isNotEmpty) ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -528,7 +411,7 @@ class _GradingPanelWidgetState extends State<GradingPanelWidget> {
                 Icon(Icons.person_rounded, size: 16, color: const Color(0xFF6366F1)),
                 const SizedBox(width: 8),
                 Text(
-                  'Người chấm: ${widget.submission.marker}',
+                  'Người chấm: ${widget.selectedMarker}',
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -540,19 +423,7 @@ class _GradingPanelWidgetState extends State<GradingPanelWidget> {
           ),
           const SizedBox(height: 16),
         ],
-        // Render Human Score input fields dynamically
-        ...exam.criteria.asMap().entries.map((entry) {
-          final index = entry.key;
-          final c = entry.value;
-          if (index >= widget.scoreControllers.length) return const SizedBox();
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: _buildScoreField(
-              '${c.name} (Tối đa: ${c.maxScore10})',
-              widget.scoreControllers[index],
-            ),
-          );
-        }),
+        ..._buildCriterionInputRows(exam),
         const Divider(height: 24),
         _buildCommentField(widget.commentController),
         const SizedBox(height: 20),
@@ -753,109 +624,479 @@ class _GradingPanelWidgetState extends State<GradingPanelWidget> {
     );
   }
 
-  Widget _buildAiScoreRow(String label, double score, double maxScore, String comment, String successMessage) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B), fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  List<Widget> _buildCriterionInputRows(ExamType exam) {
+    final widgets = <Widget>[];
+    final grouped = _groupCriteriaByRequirement(exam);
+
+    for (int i = 0; i < grouped.length; i++) {
+      final group = grouped[i];
+      final currentScore = group.indexes.fold<double>(0, (sum, index) {
+        if (index >= widget.scoreControllers.length) return sum;
+        return sum + (double.tryParse(widget.scoreControllers[index].text) ?? 0.0);
+      });
+      widgets.add(Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            initiallyExpanded: false,
+            tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            leading: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF2FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Text(
+                  '${i + 1}',
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF6366F1),
+                  ),
+                ),
+              ),
+            ),
+            title: Text(
+              group.title,
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1E293B),
+              ),
+            ),
+            subtitle: Text(
+              '${group.criteria.length} tiêu chí con',
+              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${currentScore.toStringAsFixed(1)} / ${group.maxScore10.toStringAsFixed(1)}',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF6366F1),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.expand_more, color: Color(0xFF64748B), size: 20),
+              ],
+            ),
             children: [
-              Text(
-                score.toStringAsFixed(1),
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: const Color(0xFF1E293B),
-                ),
-              ),
-              Text(
-                '/ $maxScore',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: const Color(0xFF94A3B8),
-                ),
-              ),
+              ...group.indexes.map((index) {
+                if (index >= widget.scoreControllers.length) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(left: 16, right: 8, bottom: 10),
+                  child: _buildCriterionScoreCard(
+                    exam.criteria[index],
+                    widget.scoreControllers[index],
+                  ),
+                );
+              }),
             ],
           ),
-          const SizedBox(height: 6),
-          // Comment box with a copy button next to it
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Text(
-                    comment.isNotEmpty ? comment : "Không có nhận xét từ AI cho câu này.",
+        ),
+      ));
+    }
+
+    return widgets;
+  }
+
+  List<Widget> _buildOverviewRequirementCards(ExamType exam) {
+    final grouped = _groupCriteriaByRequirement(exam);
+    return grouped.map((group) {
+      final currentScore = group.indexes.fold<double>(0, (sum, index) {
+        if (index >= widget.submission.scores.length) return sum;
+        return sum + widget.submission.scores[index];
+      });
+      final isGraded = widget.submission.graded;
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: isGraded ? const Color(0xFFD1FAE5) : const Color(0xFFEEF2FF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                isGraded ? Icons.check_rounded : Icons.article_outlined,
+                size: 18,
+                color: isGraded ? const Color(0xFF10B981) : const Color(0xFF6366F1),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    group.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: comment.isNotEmpty ? const Color(0xFF334155) : const Color(0xFF94A3B8),
-                      height: 1.4,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF334155),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${group.criteria.length} tiêu chí con',
+                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              CopyCommentButton(
-                textToCopy: comment,
-                successMessage: successMessage,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isGraded
+                  ? '${currentScore.toStringAsFixed(1)} / ${group.maxScore10.toStringAsFixed(1)}'
+                  : '0.0 / ${group.maxScore10.toStringAsFixed(1)}',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: isGraded ? const Color(0xFF10B981) : const Color(0xFF6366F1),
               ),
-            ],
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildTotalOverviewCard(ExamType exam) {
+    final total = widget.submission.graded ? widget.submission.total : 0.0;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFC7D2FE)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Tổng điểm',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1E293B),
+            ),
+          ),
+          Text(
+            '${total.toStringAsFixed(1)} / ${exam.totalMaxScore10.toStringAsFixed(1)}',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF4F46E5),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildScoreField(String label, TextEditingController controller) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF475569),
+  List<_RequirementGroup> _groupCriteriaByRequirement(ExamType exam) {
+    final groups = <_RequirementGroup>[];
+    final groupMap = <String, _RequirementGroup>{};
+
+    for (int i = 0; i < exam.criteria.length; i++) {
+      final criterion = exam.criteria[i];
+      final key = criterion.requirementId ??
+          criterion.requirementTitle ??
+          'REQ_${i + 1}';
+      final title = criterion.requirementTitle ??
+          criterion.requirementId ??
+          criterion.name;
+      final group = groupMap.putIfAbsent(key, () {
+        final created = _RequirementGroup(title);
+        groups.add(created);
+        return created;
+      });
+      group.criteria.add(criterion);
+      group.indexes.add(i);
+    }
+
+    return groups;
+  }
+
+  List<Widget> _buildAiScoreGroupRows(ExamType exam, Submission sub) {
+    final grouped = _groupCriteriaByRequirement(exam);
+    final widgets = <Widget>[];
+
+    for (int i = 0; i < grouped.length; i++) {
+      final group = grouped[i];
+      final currentScore = group.indexes.fold<double>(0, (sum, index) {
+        if (index >= sub.aiScores.length) return sum;
+        return sum + sub.aiScores[index];
+      });
+      widgets.add(Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            initiallyExpanded: false,
+            tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            leading: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF2FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Text(
+                  '${i + 1}',
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF6366F1),
+                  ),
+                ),
+              ),
+            ),
+            title: Text(
+              group.title,
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1E293B),
+              ),
+            ),
+            subtitle: Text(
+              '${group.criteria.length} tiêu chí con',
+              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${currentScore.toStringAsFixed(1)} / ${group.maxScore10.toStringAsFixed(1)}',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF6366F1),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.expand_more, color: Color(0xFF64748B), size: 20),
+              ],
+            ),
+            children: [
+              ...group.indexes.map((index) {
+                if (index >= sub.aiScores.length || index >= sub.aiComments.length) {
+                  return const SizedBox.shrink();
+                }
+                final c = exam.criteria[index];
+                final scoreVal = sub.aiScores[index];
+                final commentVal = sub.aiComments[index];
+                return Padding(
+                  padding: const EdgeInsets.only(left: 16, right: 8, bottom: 10),
+                  child: _buildAiScoreExpansionTile(
+                    '${c.id != null ? '${c.id}. ' : ''}${c.name}',
+                    scoreVal,
+                    c.maxScore10,
+                    commentVal,
+                  ),
+                );
+              }),
+            ],
           ),
         ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF6366F1)),
-            ),
+      ));
+    }
+
+    return widgets;
+  }
+
+  Widget _buildCriterionScoreCard(Criterion criterion, TextEditingController controller) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  '${criterion.id != null ? '${criterion.id}. ' : ''}${criterion.name}',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF334155),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Max ${criterion.maxScore10.toStringAsFixed(1)}',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF6366F1),
+                ),
+              ),
+            ],
           ),
-          style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B)),
+          if ((criterion.fullDescription ?? '').isNotEmpty ||
+              (criterion.partialDescription ?? '').isNotEmpty ||
+              (criterion.failDescription ?? '').isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildLevelText('Đạt', criterion.fullDescription, const Color(0xFF047857)),
+            _buildLevelText('Một phần', criterion.partialDescription, const Color(0xFFD97706)),
+            _buildLevelText('Chưa đạt', criterion.failDescription, const Color(0xFFDC2626)),
+          ],
+          if (criterion.commonErrors != null && criterion.commonErrors!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF9E6),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFFFE0B2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 14, color: const Color(0xFFD97706)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Lỗi thường gặp:',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFB45309),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  ...criterion.commonErrors!.map((error) => Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 2),
+                    child: Text(
+                      '• $error',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: const Color(0xFFB45309),
+                        height: 1.3,
+                      ),
+                    ),
+                  )),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+            onChanged: (value) {
+              setState(() {});
+            },
+            decoration: InputDecoration(
+              isDense: true,
+              filled: true,
+              fillColor: Colors.white,
+              hintText: 'Nhập điểm',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: _getScoreFieldBorderColor(controller.text, criterion.maxScore10),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: _getScoreFieldBorderColor(controller.text, criterion.maxScore10),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: _getScoreFieldBorderColor(controller.text, criterion.maxScore10),
+                  width: 1.5,
+                ),
+              ),
+              errorText: _getScoreFieldError(controller.text, criterion.maxScore10),
+              errorStyle: GoogleFonts.inter(fontSize: 10, color: const Color(0xFFDC2626)),
+            ),
+            style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getScoreFieldBorderColor(String value, double maxScore) {
+    if (value.isEmpty) return const Color(0xFFE2E8F0);
+    final score = double.tryParse(value);
+    if (score == null) return const Color(0xFFDC2626);
+    if (score < 0 || score > maxScore) return const Color(0xFFDC2626);
+    return const Color(0xFF10B981);
+  }
+
+  String? _getScoreFieldError(String value, double maxScore) {
+    if (value.isEmpty) return null;
+    final score = double.tryParse(value);
+    if (score == null) return 'Điểm phải là số';
+    if (score < 0 || score > maxScore) return 'Điểm phải từ 0 đến $maxScore';
+    return null;
+  }
+
+  Widget _buildLevelText(String label, String? text, Color color) {
+    if (text == null || text.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+            ),
+            TextSpan(
+              text: text,
+              style: GoogleFonts.inter(fontSize: 11, height: 1.35, color: const Color(0xFF64748B)),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -913,6 +1154,16 @@ class CopyCommentButton extends StatefulWidget {
 
   @override
   State<CopyCommentButton> createState() => _CopyCommentButtonState();
+}
+
+class _RequirementGroup {
+  final String title;
+  final List<Criterion> criteria = [];
+  final List<int> indexes = [];
+
+  _RequirementGroup(this.title);
+
+  double get maxScore10 => criteria.fold(0.0, (sum, criterion) => sum + criterion.maxScore10);
 }
 
 class _CopyCommentButtonState extends State<CopyCommentButton> {

@@ -27,9 +27,12 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
   final SessionService _sessionService = SessionService();
 
   List<Submission> submissions = [];
+  List<Submission> filteredSubmissions = [];
   int currentIndex = -1;
   bool isLoading = false;
   String apiKey = "";
+  String? selectedMarker;
+  List<String> markers = [];
 
   final List<TextEditingController> _scoreControllers = [];
   final TextEditingController _commentController = TextEditingController();
@@ -43,7 +46,16 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
     super.initState();
     sessionExamTypes.addAll(defaultExamTypes.map((e) => ExamType(
       e.code,
-      e.criteria.map((c) => Criterion(c.name, c.maxScore100)).toList(),
+      e.criteria.map((c) => Criterion(
+        c.name,
+        c.maxScore100,
+        id: c.id,
+        requirementId: c.requirementId,
+        requirementTitle: c.requirementTitle,
+        fullDescription: c.fullDescription,
+        partialDescription: c.partialDescription,
+        failDescription: c.failDescription,
+      )).toList(),
       customRubric: e.customRubric,
     )));
     selectedGlobalExamType = sessionExamTypes.first;
@@ -89,7 +101,16 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
             if (criteriaList is List) {
               exam.criteria = criteriaList.map((c) {
                 final map = c as Map<String, dynamic>;
-                return Criterion(map['name'] as String, (map['maxScore100'] as num).toDouble());
+                return Criterion(
+                  map['name'] as String,
+                  (map['maxScore100'] as num).toDouble(),
+                  id: map['id'] as String?,
+                  requirementId: map['requirementId'] as String?,
+                  requirementTitle: map['requirementTitle'] as String?,
+                  fullDescription: map['fullDescription'] as String?,
+                  partialDescription: map['partialDescription'] as String?,
+                  failDescription: map['failDescription'] as String?,
+                );
               }).toList();
             }
           });
@@ -135,7 +156,8 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
           Map<String, String> aliasMarkerMappings = {};
           if (widget.session.markInputXlsxPath != null) {
             aliasMarkerMappings = await _fileService.extractAliasMarkerMappings(widget.session.markInputXlsxPath!);
-            
+            final markersList = await _fileService.extractMarkersList(widget.session.markInputXlsxPath!);
+
             // Assign markers to submissions based on filename matching alias
             for (var submission in loadedSubmissions) {
               final alias = _extractAliasFromFileName(submission.fileName);
@@ -143,14 +165,21 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
                 submission.marker = aliasMarkerMappings[alias];
               }
             }
+
+            setState(() {
+              markers = markersList;
+              // Set selected marker from session or first marker
+              selectedMarker = widget.session.markerName ?? (markersList.isNotEmpty ? markersList.first : null);
+            });
           }
 
           setState(() {
             submissions = loadedSubmissions;
+            _filterSubmissionsByMarker();
             int savedIndex = progress?['currentIndex'] as int? ?? 0;
-            if (savedIndex >= 0 && savedIndex < submissions.length) {
+            if (savedIndex >= 0 && savedIndex < filteredSubmissions.length) {
               currentIndex = savedIndex;
-            } else if (submissions.isNotEmpty) {
+            } else if (filteredSubmissions.isNotEmpty) {
               currentIndex = 0;
             }
             if (currentIndex != -1) {
@@ -164,22 +193,45 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
       if (widget.session.gradingGuideDocPath != null && (selectedGlobalExamType?.customRubric == null || selectedGlobalExamType!.customRubric!.isEmpty)) {
         final rubricText = await _fileService.extractDocxTextFromPath(widget.session.gradingGuideDocPath!);
         if (rubricText != null) {
+          final parsedCriteria = _fileService.parseImportRubricCriteria(rubricText);
           setState(() {
             if (selectedGlobalExamType != null) {
               selectedGlobalExamType!.customRubric = rubricText;
+              if (parsedCriteria.isNotEmpty) {
+                selectedGlobalExamType!.criteria = parsedCriteria;
+              }
             }
             for (var sub in submissions) {
               if (sub.examType != null) {
                 sub.examType!.customRubric = rubricText;
+                if (parsedCriteria.isNotEmpty) {
+                  sub.examType!.criteria = parsedCriteria;
+                }
+              }
+              final exam = sub.examType ?? selectedGlobalExamType;
+              if (exam != null) {
+                sub.initScores(exam);
               }
             }
+            if (currentIndex != -1) {
+              _loadSubmission(currentIndex);
+            }
           });
+          _updateAndSaveSession();
         }
       }
     } catch (e) {
       _showSnackBar("Lỗi khi khôi phục tiến trình: $e");
     } finally {
       setState(() => isLoading = false);
+    }
+  }
+
+  void _filterSubmissionsByMarker() {
+    if (selectedMarker == null || selectedMarker!.isEmpty) {
+      filteredSubmissions = List.from(submissions);
+    } else {
+      filteredSubmissions = submissions.where((s) => s.marker == selectedMarker).toList();
     }
   }
 
@@ -210,6 +262,12 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
           exam.code: exam.criteria.map((c) => {
             'name': c.name,
             'maxScore100': c.maxScore100,
+            'id': c.id,
+            'requirementId': c.requirementId,
+            'requirementTitle': c.requirementTitle,
+            'fullDescription': c.fullDescription,
+            'partialDescription': c.partialDescription,
+            'failDescription': c.failDescription,
           }).toList()
       },
       'submissions': submissions.map((sub) => {
@@ -275,9 +333,9 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
   }
 
   void _loadSubmission(int index) {
-    if (index < 0 || index >= submissions.length) return;
-    
-    final sub = submissions[index];
+    if (index < 0 || index >= filteredSubmissions.length) return;
+
+    final sub = filteredSubmissions[index];
     if (sub.examType == null && selectedGlobalExamType != null) {
       sub.examType = selectedGlobalExamType;
     }
@@ -308,14 +366,29 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
 
   void _saveCurrentScores() {
     if (currentIndex == -1) return;
-    
-    final sub = submissions[currentIndex];
+
+    final sub = filteredSubmissions[currentIndex];
     final exam = sub.examType ?? selectedGlobalExamType!;
     sub.initScores(exam);
 
+    // Validate scores
     for (int i = 0; i < exam.criteria.length; i++) {
       if (i < _scoreControllers.length) {
-        sub.scores[i] = double.tryParse(_scoreControllers[i].text) ?? 0.0;
+        final scoreText = _scoreControllers[i].text.trim();
+        if (scoreText.isEmpty) {
+          _showSnackBar('Vui lòng nhập điểm cho tất cả tiêu chí');
+          return;
+        }
+        final score = double.tryParse(scoreText);
+        if (score == null) {
+          _showSnackBar('Điểm phải là số');
+          return;
+        }
+        if (score < 0 || score > exam.criteria[i].maxScore10) {
+          _showSnackBar('Điểm tiêu chí ${exam.criteria[i].name} phải từ 0 đến ${exam.criteria[i].maxScore10}');
+          return;
+        }
+        sub.scores[i] = score;
       }
     }
     sub.comment = _commentController.text;
@@ -326,8 +399,8 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
 
   void _saveScoresWithoutMarking() {
     if (currentIndex == -1) return;
-    
-    final sub = submissions[currentIndex];
+
+    final sub = filteredSubmissions[currentIndex];
     final exam = sub.examType ?? selectedGlobalExamType!;
     sub.initScores(exam);
 
@@ -343,7 +416,7 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
   }
 
   void _nextSubmission() {
-    if (currentIndex < submissions.length - 1) {
+    if (currentIndex < filteredSubmissions.length - 1) {
       setState(() {
         currentIndex++;
         _loadSubmission(currentIndex);
@@ -380,8 +453,8 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
       return;
     }
     if (currentIndex == -1) return;
-    
-    final sub = submissions[currentIndex];
+
+    final sub = filteredSubmissions[currentIndex];
     final exam = sub.examType ?? selectedGlobalExamType!;
     
     setState(() => isLoading = true);
@@ -402,7 +475,7 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
 
   void _copyAiToTeacher() {
     if (currentIndex == -1) return;
-    final sub = submissions[currentIndex];
+    final sub = filteredSubmissions[currentIndex];
     if (!sub.hasAiGraded) return;
 
     final exam = sub.examType ?? selectedGlobalExamType!;
@@ -420,15 +493,9 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
   }
 
   Future<void> _exportData() async {
-    final markerName = _markerController.text.trim();
-    if (markerName.isEmpty) {
-      _showSnackBar("Vui lòng nhập tên người chấm trước khi xuất Excel!");
-      return;
-    }
-
     _saveScoresWithoutMarking();
     try {
-      await _exportService.exportToExcel(submissions, markerName);
+      await _exportService.exportToExcel(submissions, selectedMarker ?? '');
       _showSnackBar('Xuất tệp Excel thành công!');
     } catch (e) {
       _showSnackBar('Lỗi khi xuất tệp: $e');
@@ -519,20 +586,34 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
                 onLoadZip: _pickZipAndExtract,
                 onExportExcel: _exportData,
                 onShowSettings: _showSettingsDialog,
-                hasSubmissions: submissions.isNotEmpty,
-                currentSubmission: currentIndex >= 0 && currentIndex < submissions.length 
-                    ? submissions[currentIndex] 
+                hasSubmissions: filteredSubmissions.isNotEmpty,
+                currentSubmission: currentIndex >= 0 && currentIndex < filteredSubmissions.length
+                    ? filteredSubmissions[currentIndex]
                     : null,
                 sessionName: widget.session.name,
+                selectedMarker: selectedMarker,
+                markers: markers,
+                onMarkerChanged: (marker) {
+                  setState(() {
+                    selectedMarker = marker;
+                    _filterSubmissionsByMarker();
+                    if (filteredSubmissions.isNotEmpty) {
+                      currentIndex = 0;
+                      _loadSubmission(0);
+                    } else {
+                      currentIndex = -1;
+                    }
+                  });
+                },
               ),
               Expanded(
-                child: submissions.isEmpty
+                child: filteredSubmissions.isEmpty
                     ? _buildEmptyState()
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           SidebarWidget(
-                            submissions: submissions,
+                            submissions: filteredSubmissions,
                             currentIndex: currentIndex,
                             onSubmissionSelected: (index) {
                               _saveScoresWithoutMarking();
@@ -544,30 +625,30 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
                           ),
                           Expanded(
                             child: ContentViewerWidget(
-                              submission: submissions[currentIndex],
+                              submission: filteredSubmissions[currentIndex],
                               currentIndex: currentIndex,
-                              totalSubmissions: submissions.length,
+                              totalSubmissions: filteredSubmissions.length,
                               onExamTypeChanged: (val) {
                                 setState(() {
-                                  submissions[currentIndex].examType = val;
+                                  filteredSubmissions[currentIndex].examType = val;
                                   _loadSubmission(currentIndex); // reload controllers for new type
                                 });
                                 _updateAndSaveSession();
                               },
-                              onConfigureCriteria: () => _showConfigureCriteriaDialog(submissions[currentIndex].examType ?? selectedGlobalExamType ?? sessionExamTypes.first),
+                              onConfigureCriteria: () => _showConfigureCriteriaDialog(filteredSubmissions[currentIndex].examType ?? selectedGlobalExamType ?? sessionExamTypes.first),
                               onPrev: currentIndex > 0 ? _prevSubmission : null,
-                              onNext: currentIndex < submissions.length - 1 ? _nextSubmission : null,
+                              onNext: currentIndex < filteredSubmissions.length - 1 ? _nextSubmission : null,
                               examTypes: sessionExamTypes,
                               examImagePath: widget.session.examImagePath,
                             ),
                           ),
                           GradingPanelWidget(
-                            submission: submissions[currentIndex],
+                            submission: filteredSubmissions[currentIndex],
                             onAskAi: _askAi,
                             onCopyAiToTeacher: _copyAiToTeacher,
                             onSaveScores: () {
                               _saveCurrentScores();
-                              if (currentIndex < submissions.length - 1) {
+                              if (currentIndex < filteredSubmissions.length - 1) {
                                 _nextSubmission();
                               } else {
                                 _showSnackBar("Đã hoàn tất chấm điểm toàn bộ bài nộp!");
@@ -575,8 +656,9 @@ class _MainGradingScreenState extends State<MainGradingScreen> {
                             },
                             scoreControllers: _scoreControllers,
                             commentController: _commentController,
-                            hasNext: currentIndex < submissions.length - 1,
+                            hasNext: currentIndex < filteredSubmissions.length - 1,
                             onRubricChanged: _onRubricChanged,
+                            selectedMarker: selectedMarker,
                           ),
                         ],
                       ),

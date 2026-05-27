@@ -60,10 +60,10 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bottom controls (moved to top)
+          // Bottom controls
           _buildBottomControls(exam, hasCustomRubric),
           const SizedBox(height: 20),
-          
+
           // Tab bar
           Container(
             decoration: BoxDecoration(
@@ -113,7 +113,7 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
             ),
           ),
           const SizedBox(height: 20),
-          
+
           // Tab content
           Expanded(
             child: TabBarView(
@@ -124,9 +124,9 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
               ],
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Navigation buttons
           _buildNavigationButtons(),
         ],
@@ -328,43 +328,21 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
       ),
       child: Row(
         children: [
-          // Left side: Filename and counter
+          // Left side: Filename
           Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.submission.fileName,
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E293B),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    'Bài ${widget.currentIndex + 1} / ${widget.totalSubmissions}',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF475569),
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(
+              widget.submission.fileName,
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1E293B),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          
+
           const SizedBox(width: 16),
-          
+
           // Right side: Rubric info
           if (hasCustomRubric)
             Row(
@@ -396,6 +374,14 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
                 ),
               ],
             ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, size: 16, color: Color(0xFF6366F1)),
+            tooltip: "Cấu hình tiêu chí đề thi",
+            onPressed: widget.onConfigureCriteria,
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(6),
+          ),
         ],
       ),
     );
@@ -415,9 +401,28 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
             foregroundColor: const Color(0xFF6366F1),
           ),
         ),
-        
+
         const SizedBox(width: 32),
-        
+
+        // Counter
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            'Bài ${widget.currentIndex + 1} / ${widget.totalSubmissions}',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF475569),
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 32),
+
         // Next button
         IconButton.filled(
           onPressed: widget.onNext,
