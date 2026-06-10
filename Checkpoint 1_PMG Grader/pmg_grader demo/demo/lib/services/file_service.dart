@@ -18,16 +18,20 @@ class FileService {
     if (result != null && result.files.single.path != null) {
       final bytes = File(result.files.single.path!).readAsBytesSync();
       final archive = ZipDecoder().decodeBytes(bytes);
-      
+
       final appData = await getApplicationSupportDirectory();
-      final extractPath = p.join(appData.path, 'PMG_Grader_Data', 'Extracted_$sessionId');
-      
+      final extractPath = p.join(
+        appData.path,
+        'PMG_Grader_Data',
+        'Extracted_$sessionId',
+      );
+
       // Clean existing directory first if they are re-uploading
       final dir = Directory(extractPath);
       if (dir.existsSync()) {
         dir.deleteSync(recursive: true);
       }
-      
+
       for (final file in archive) {
         final filename = file.name;
         if (file.isFile && filename.endsWith('.txt')) {
@@ -42,15 +46,25 @@ class FileService {
     return null;
   }
 
-  Future<String?> extractZipFromPath(String zipFilePath, String sessionId) async {
+  Future<String?> extractZipFromPath(
+    String zipFilePath,
+    String sessionId,
+  ) async {
     try {
       final appData = await getApplicationSupportDirectory();
-      final extractPath = p.join(appData.path, 'PMG_Grader_Data', 'Extracted_$sessionId');
+      final extractPath = p.join(
+        appData.path,
+        'PMG_Grader_Data',
+        'Extracted_$sessionId',
+      );
 
       // Check if folder already exists and has text files. If so, just return it without re-extracting!
       final dir = Directory(extractPath);
       if (dir.existsSync()) {
-        final files = dir.listSync(recursive: true).where((file) => p.extension(file.path) == '.txt').toList();
+        final files = dir
+            .listSync(recursive: true)
+            .where((file) => p.extension(file.path) == '.txt')
+            .toList();
         if (files.isNotEmpty) {
           return extractPath;
         }
@@ -76,32 +90,39 @@ class FileService {
 
   List<Submission> loadSubmissionsFromFolder(String path) {
     final dir = Directory(path);
-    final files = dir.listSync(recursive: true).where((file) => p.extension(file.path) == '.txt').toList();
+    final files = dir
+        .listSync(recursive: true)
+        .where((file) => p.extension(file.path) == '.txt')
+        .toList();
 
     List<Submission> loadedSubmissions = [];
     for (var file in files) {
       if (file is File) {
         final content = file.readAsStringSync();
-        loadedSubmissions.add(Submission(
-          fileName: p.basename(file.path),
-          filePath: file.path,
-          content: content,
-        ));
+        loadedSubmissions.add(
+          Submission(
+            fileName: p.basename(file.path),
+            filePath: file.path,
+            content: content,
+          ),
+        );
       }
     }
     loadedSubmissions.sort((a, b) {
       // Extract numbers from filenames for proper ordering
-      final extractNumber = (String fileName) {
-        final numbers = RegExp(r'\d+').allMatches(fileName).map((m) => m.group(0)!).toList();
+      int extractNumber(String fileName) {
+        final numbers = RegExp(
+          r'\d+',
+        ).allMatches(fileName).map((m) => m.group(0)!).toList();
         if (numbers.isNotEmpty) {
           return int.tryParse(numbers.first) ?? 0;
         }
         return 0;
-      };
-      
+      }
+
       final numA = extractNumber(a.fileName);
       final numB = extractNumber(b.fileName);
-      
+
       return numA.compareTo(numB);
     });
     return loadedSubmissions;
@@ -111,20 +132,21 @@ class FileService {
     try {
       final bytes = File(path).readAsBytesSync();
       final archive = ZipDecoder().decodeBytes(bytes);
-      
+
       final docFile = archive.firstWhere(
         (file) => file.name == 'word/document.xml',
-        orElse: () => throw Exception('Invalid DOCX format: word/document.xml not found'),
+        orElse: () =>
+            throw Exception('Invalid DOCX format: word/document.xml not found'),
       );
-      
+
       final xmlContent = utf8.decode(docFile.content as List<int>);
-      
+
       final buffer = StringBuffer();
       final regExp = RegExp(r'<[^>]+>|[^<]+');
       final matches = regExp.allMatches(xmlContent);
-      
+
       bool inText = false;
-      
+
       for (final match in matches) {
         final token = match.group(0)!;
         if (token.startsWith('<')) {
@@ -159,14 +181,15 @@ class FileService {
           }
         }
       }
-      
-      String text = buffer.toString()
+
+      String text = buffer
+          .toString()
           .replaceAll('&lt;', '<')
           .replaceAll('&gt;', '>')
           .replaceAll('&amp;', '&')
           .replaceAll('&quot;', '"')
           .replaceAll('&apos;', "'");
-          
+
       // Clean up whitespace and collapse multiple empty lines
       final lines = text.split('\n');
       final cleanLines = <String>[];
@@ -176,7 +199,7 @@ class FileService {
           cleanLines.add(trimmed);
         }
       }
-      
+
       return cleanLines.join('\n');
     } catch (e) {
       throw Exception("Failed to parse Word document: $e");
@@ -212,17 +235,21 @@ class FileService {
       final title = currentCriterion!['title'];
       final pointsText = currentCriterion!['max_points'];
       if (title != null && pointsText != null) {
-        criteria.add(Criterion(
-          title,
-          double.tryParse(pointsText.replaceAll(',', '.')) ?? 0.0,
-          id: currentCriterion!['id'],
-          requirementId: currentRequirementId,
-          requirementTitle: currentRequirementTitle,
-          fullDescription: currentCriterion!['level_full_description'],
-          partialDescription: currentCriterion!['level_partial_description'],
-          failDescription: currentCriterion!['level_fail_description'],
-          commonErrors: currentCommonErrors.isNotEmpty ? List.from(currentCommonErrors) : null,
-        ));
+        criteria.add(
+          Criterion(
+            title,
+            double.tryParse(pointsText.replaceAll(',', '.')) ?? 0.0,
+            id: currentCriterion!['id'],
+            requirementId: currentRequirementId,
+            requirementTitle: currentRequirementTitle,
+            fullDescription: currentCriterion!['level_full_description'],
+            partialDescription: currentCriterion!['level_partial_description'],
+            failDescription: currentCriterion!['level_fail_description'],
+            commonErrors: currentCommonErrors.isNotEmpty
+                ? List.from(currentCommonErrors)
+                : null,
+          ),
+        );
       }
       currentCriterion = null;
       currentCommonErrors = [];
@@ -274,7 +301,7 @@ class FileService {
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
         if (sheet == null || sheet.maxRows == 0) continue;
-        
+
         // Find "Marker" column index
         int markerColIndex = -1;
         final searchLimit = sheet.maxRows > 5 ? 5 : sheet.maxRows;
@@ -291,7 +318,9 @@ class FileService {
             // Find first non-empty value below this header
             for (int r2 = r + 1; r2 < sheet.maxRows; r2++) {
               if (markerColIndex < sheet.rows[r2].length) {
-                final cellVal = sheet.rows[r2][markerColIndex]?.value?.toString().trim();
+                final cellVal = sheet.rows[r2][markerColIndex]?.value
+                    ?.toString()
+                    .trim();
                 if (cellVal != null && cellVal.isNotEmpty) {
                   return cellVal;
                 }
@@ -299,7 +328,7 @@ class FileService {
             }
           }
         }
-        
+
         // Fallback: look at column 1 (index 1), row 2 (index 2) onwards
         for (int r = 2; r < sheet.maxRows; r++) {
           if (sheet.rows[r].length > 1) {
@@ -324,45 +353,52 @@ class FileService {
       for (var table in excel.tables.keys) {
         var sheet = excel.tables[table];
         if (sheet == null || sheet.maxRows == 0) continue;
-        
+
         // Find column indices for "Alias" and "Marker"
         int aliasColIndex = -1;
         int markerColIndex = -1;
         int headerRow = -1;
-        
+
         final searchLimit = sheet.maxRows > 5 ? 5 : sheet.maxRows;
         for (int r = 0; r < searchLimit; r++) {
           final row = sheet.rows[r];
           bool foundAlias = false;
           bool foundMarker = false;
-          
+
           for (int c = 0; c < row.length; c++) {
             final val = row[c]?.value?.toString().trim().toLowerCase();
             if (val == 'alias') {
               aliasColIndex = c;
               foundAlias = true;
-            } else if (val == 'marker' || val == 'người chấm' || val == 'nguoi cham') {
+            } else if (val == 'marker' ||
+                val == 'người chấm' ||
+                val == 'nguoi cham') {
               markerColIndex = c;
               foundMarker = true;
             }
           }
-          
+
           if (foundAlias && foundMarker) {
             headerRow = r;
             break;
           }
         }
-        
+
         // If both columns found, extract mappings
         if (aliasColIndex != -1 && markerColIndex != -1 && headerRow != -1) {
           for (int r = headerRow + 1; r < sheet.maxRows; r++) {
             final row = sheet.rows[r];
-            if (row.length > (aliasColIndex > markerColIndex ? aliasColIndex : markerColIndex)) {
+            if (row.length >
+                (aliasColIndex > markerColIndex
+                    ? aliasColIndex
+                    : markerColIndex)) {
               final alias = row[aliasColIndex]?.value?.toString().trim();
               final marker = row[markerColIndex]?.value?.toString().trim();
-              
-              if (alias != null && alias.isNotEmpty && 
-                  marker != null && marker.isNotEmpty) {
+
+              if (alias != null &&
+                  alias.isNotEmpty &&
+                  marker != null &&
+                  marker.isNotEmpty) {
                 mappings[alias] = marker;
               }
             }

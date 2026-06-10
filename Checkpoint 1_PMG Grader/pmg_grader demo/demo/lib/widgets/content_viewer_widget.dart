@@ -32,7 +32,8 @@ class ContentViewerWidget extends StatefulWidget {
   State<ContentViewerWidget> createState() => _ContentViewerWidgetState();
 }
 
-class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTickerProviderStateMixin {
+class _ContentViewerWidgetState extends State<ContentViewerWidget>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late TransformationController _transformationController;
 
@@ -53,7 +54,8 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
   @override
   Widget build(BuildContext context) {
     final exam = widget.submission.examType;
-    final hasCustomRubric = exam?.customRubric != null && exam!.customRubric!.isNotEmpty;
+    final hasCustomRubric =
+        exam?.customRubric != null && exam!.customRubric!.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(28),
@@ -118,10 +120,7 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [
-                _buildSubmissionContent(),
-                _buildExamImageContent(),
-              ],
+              children: [_buildSubmissionContent(), _buildExamImageContent()],
             ),
           ),
 
@@ -214,7 +213,7 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
                 width: double.infinity,
                 height: double.infinity,
                 errorBuilder: (context, error, stackTrace) {
-                  return Container(
+                  return SizedBox(
                     width: double.infinity,
                     height: double.infinity,
                     child: Center(
@@ -241,7 +240,7 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
                 },
               ),
             ),
-            
+
             // Zoom controls overlay
             Positioned(
               top: 12,
@@ -255,43 +254,68 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.zoom_in, color: Colors.white, size: 20),
+                      icon: const Icon(
+                        Icons.zoom_in,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       onPressed: () {
-                        final currentScale = _transformationController.value.getMaxScaleOnAxis();
+                        final currentScale = _transformationController.value
+                            .getMaxScaleOnAxis();
                         final newScale = (currentScale * 1.2).clamp(0.5, 4.0);
-                        _transformationController.value = Matrix4.identity()..scale(newScale);
+                        _transformationController.value = Matrix4.identity()
+                          ..scale(newScale);
                       },
                       tooltip: "Phóng to (Ctrl +)",
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
                       padding: EdgeInsets.zero,
                     ),
                     const SizedBox(height: 4),
                     IconButton(
-                      icon: const Icon(Icons.zoom_out, color: Colors.white, size: 20),
+                      icon: const Icon(
+                        Icons.zoom_out,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       onPressed: () {
-                        final currentScale = _transformationController.value.getMaxScaleOnAxis();
+                        final currentScale = _transformationController.value
+                            .getMaxScaleOnAxis();
                         final newScale = (currentScale / 1.2).clamp(0.5, 4.0);
-                        _transformationController.value = Matrix4.identity()..scale(newScale);
+                        _transformationController.value = Matrix4.identity()
+                          ..scale(newScale);
                       },
                       tooltip: "Thu nhỏ (Ctrl -)",
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
                       padding: EdgeInsets.zero,
                     ),
                     const SizedBox(height: 4),
                     IconButton(
-                      icon: const Icon(Icons.center_focus_strong, color: Colors.white, size: 20),
+                      icon: const Icon(
+                        Icons.center_focus_strong,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       onPressed: () {
                         _transformationController.value = Matrix4.identity();
                       },
                       tooltip: "Đưa về kích thước gốc",
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
                       padding: EdgeInsets.zero,
                     ),
                   ],
                 ),
               ),
             ),
-            
+
             // Zoom hint
             Positioned(
               bottom: 12,
@@ -347,7 +371,11 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
           if (hasCustomRubric)
             Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.green, size: 16),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Colors.green,
+                  size: 16,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   "Đã nạp Word Rubric",
@@ -362,7 +390,11 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
           else
             Row(
               children: [
-                const Icon(Icons.info_outline_rounded, color: Color(0xFF64748B), size: 16),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  color: Color(0xFF64748B),
+                  size: 16,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   "Rubric mặc định",
@@ -376,7 +408,11 @@ class _ContentViewerWidgetState extends State<ContentViewerWidget> with SingleTi
             ),
           const SizedBox(width: 4),
           IconButton(
-            icon: const Icon(Icons.settings_outlined, size: 16, color: Color(0xFF6366F1)),
+            icon: const Icon(
+              Icons.settings_outlined,
+              size: 16,
+              color: Color(0xFF6366F1),
+            ),
             tooltip: "Cấu hình tiêu chí đề thi",
             onPressed: widget.onConfigureCriteria,
             constraints: const BoxConstraints(),
