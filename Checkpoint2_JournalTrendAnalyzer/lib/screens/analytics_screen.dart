@@ -21,6 +21,16 @@ class AnalyticsScreen extends StatelessWidget {
       );
     }
 
+    final journals = provider.journals
+        .take(20)
+        .map((item) => RankedStatItem(name: item.name, count: item.publicationCount))
+        .toList();
+    final authors = provider.authors
+        .take(20)
+        .map((item) => RankedStatItem(name: item.name, count: item.publicationCount))
+        .toList();
+    final papers = provider.influentialPapers.take(20).toList();
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -38,30 +48,18 @@ class AnalyticsScreen extends StatelessWidget {
           children: [
             RankedStatList(
               title: 'Top journals and venues',
-              items: provider.journals
-                  .take(20)
-                  .map((item) => RankedStatItem(
-                        name: item.name,
-                        count: item.publicationCount,
-                      ))
-                  .toList(),
+              items: journals,
             ),
             RankedStatList(
               title: 'Top contributing authors',
-              items: provider.authors
-                  .take(20)
-                  .map((item) => RankedStatItem(
-                        name: item.name,
-                        count: item.publicationCount,
-                      ))
-                  .toList(),
+              items: authors,
             ),
             ListView.separated(
               padding: const EdgeInsets.all(16),
-              itemCount: provider.influentialPapers.take(20).length,
+              itemCount: papers.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
-                final paper = provider.influentialPapers[index];
+                final paper = papers[index];
                 return PublicationCard(
                   publication: paper,
                   onTap: () => Navigator.of(context).push(

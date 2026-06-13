@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../models/trend_point.dart';
 
@@ -8,27 +9,74 @@ class TrendChart extends StatelessWidget {
 
   final List<TrendPoint> points;
 
+  static List<int> _labelYears(List<TrendPoint> pts, {int target = 5}) {
+    if (pts.isEmpty) return [];
+    final years = pts.map((p) => p.year).toList();
+    if (years.length <= target) return years;
+    return List.generate(target, (i) {
+      final index = (i * (years.length - 1) / (target - 1)).round();
+      return years[index];
+    }).toSet().toList();
+  }
+
+  static double _yInterval(double maxY) {
+    if (maxY <= 5) return 1;
+    if (maxY <= 12) return 2;
+    if (maxY <= 25) return 5;
+    if (maxY <= 60) return 10;
+    return (maxY / 5).ceilToDouble();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (points.isEmpty) {
       return const Center(child: Text('No yearly data available.'));
     }
 
-    final maxY = points
-        .map((point) => point.count)
-        .fold<int>(
-          0,
-          (previous, current) => current > previous ? current : previous,
-        )
+    final sortedPoints = [...points]..sort((a, b) => a.year.compareTo(b.year));
+
+    final maxY = sortedPoints
+        .map((p) => p.count)
+        .fold<int>(0, (prev, c) => c > prev ? c : prev)
         .toDouble();
+
+    final yInterval = _yInterval(maxY);
+    final chartMaxY = maxY == 0
+        ? yInterval
+        : ((maxY / yInterval).ceil() * yInterval).toDouble() + yInterval * 0.5;
+
+    final minYear = sortedPoints.first.year.toDouble();
+    final maxYear = sortedPoints.last.year.toDouble();
+    final hasSinglePoint = sortedPoints.length == 1;
+    final minX = hasSinglePoint ? minYear - 1 : minYear;
+    final maxX = hasSinglePoint ? maxYear + 1 : maxYear;
+
+    final primary = Theme.of(context).colorScheme.primary;
+    final labelStyle = GoogleFonts.firaCode(
+      fontSize: 10,
+      color: const Color(0xFF94A3B8),
+    );
+
+    final showLabels = _labelYears(sortedPoints).toSet();
 
     return Semantics(
       label: 'Line chart showing publications grouped by year',
       child: LineChart(
         LineChartData(
+          minX: minX,
+          maxX: maxX,
           minY: 0,
-          maxY: maxY + 1,
-          gridData: const FlGridData(show: true),
+          maxY: chartMaxY,
+          clipData: const FlClipData.all(),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: yInterval,
+            getDrawingHorizontalLine: (_) => const FlLine(
+              color: Color(0xFFEEF2F7),
+              strokeWidth: 1,
+            ),
+          ),
           borderData: FlBorderData(
             show: true,
             border: const Border(
@@ -46,26 +94,35 @@ class TrendChart extends StatelessWidget {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 34,
-                getTitlesWidget: (value, meta) => Text(
-                  value.toInt().toString(),
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
+                reservedSize: 32,
+                interval: yInterval,
+                getTitlesWidget: (value, meta) {
+                  if (value == 0 || value == chartMaxY) {
+                    return const SizedBox.shrink();
+                  }
+                  if (value != value.truncateToDouble()) {
+                    return const SizedBox.shrink();
+                  }
+                  return Text(value.toInt().toString(), style: labelStyle);
+                },
               ),
             ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 34,
-                interval: _yearInterval(points),
+                reservedSize: 28,
+                interval: 1,
                 getTitlesWidget: (value, meta) {
+                  if (value != value.truncateToDouble()) {
+                    return const SizedBox.shrink();
+                  }
                   final year = value.toInt();
+                  if (!showLabels.contains(year)) {
+                    return const SizedBox.shrink();
+                  }
                   return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      year.toString(),
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(year.toString(), style: labelStyle),
                   );
                 },
               ),
@@ -73,32 +130,38 @@ class TrendChart extends StatelessWidget {
           ),
           lineBarsData: [
             LineChartBarData(
-              spots: points
-                  .map(
-                    (point) =>
-                        FlSpot(point.year.toDouble(), point.count.toDouble()),
-                  )
+              spots: sortedPoints
+                  .map((p) => FlSpot(p.year.toDouble(), p.count.toDouble()))
                   .toList(),
-              isCurved: true,
-              color: Theme.of(context).colorScheme.primary,
-              barWidth: 3,
-              dotData: const FlDotData(show: true),
+              isCurved: sortedPoints.length > 2,
+              curveSmoothness: 0.3,
+              color: primary,
+              barWidth: 2,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, bar, index) =>
+                    FlDotCirclePainter(
+                  radius: 2.5,
+                  color: Colors.white,
+                  strokeWidth: 1.5,
+                  strokeColor: primary,
+                ),
+              ),
               belowBarData: BarAreaData(
                 show: true,
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.12),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    primary.withValues(alpha: 0.18),
+                    primary.withValues(alpha: 0.0),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  double _yearInterval(List<TrendPoint> points) {
-    if (points.length <= 6) return 1;
-    final range = points.last.year - points.first.year;
-    return (range / 5).ceilToDouble().clamp(1, 10);
   }
 }

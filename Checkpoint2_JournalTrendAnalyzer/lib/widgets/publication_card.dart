@@ -13,15 +13,32 @@ class PublicationCard extends StatelessWidget {
   final Publication publication;
   final VoidCallback onTap;
 
+  static Color _citationBg(int count) {
+    if (count > 500) return const Color(0xFFFEF3C7);
+    if (count > 50) return const Color(0xFFECFDF5);
+    if (count > 5) return const Color(0xFFEFF6FF);
+    return const Color(0xFFF1F5F9);
+  }
+
+  static Color _citationFg(int count) {
+    if (count > 500) return const Color(0xFFB45309);
+    if (count > 50) return const Color(0xFF047857);
+    if (count > 5) return const Color(0xFF1D4ED8);
+    return const Color(0xFF475569);
+  }
+
   @override
   Widget build(BuildContext context) {
     final citationText = NumberFormat.compact().format(publication.citedByCount);
+    final citBg = _citationBg(publication.citedByCount);
+    final citFg = _citationFg(publication.citedByCount);
+
     return Semantics(
       button: true,
       label: 'Open publication details',
       child: Card(
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -34,24 +51,31 @@ class PublicationCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
+                        height: 1.35,
                       ),
                 ),
                 const SizedBox(height: 10),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 6,
+                  runSpacing: 6,
                   children: [
                     _Chip(
                       icon: Icons.calendar_today_outlined,
                       label: publication.publicationYear?.toString() ?? 'N/A',
+                      bgColor: const Color(0xFFEFF6FF),
+                      fgColor: const Color(0xFF1D4ED8),
                     ),
                     _Chip(
                       icon: Icons.format_quote,
                       label: '$citationText citations',
+                      bgColor: citBg,
+                      fgColor: citFg,
                     ),
                     _Chip(
                       icon: Icons.menu_book_outlined,
                       label: publication.journalName ?? 'Unknown venue',
+                      bgColor: const Color(0xFFF5F3FF),
+                      fgColor: const Color(0xFF6D28D9),
                     ),
                   ],
                 ),
@@ -65,30 +89,40 @@ class PublicationCard extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.label});
+  const _Chip({
+    required this.icon,
+    required this.label,
+    required this.bgColor,
+    required this.fgColor,
+  });
 
   final IconData icon;
   final String label;
+  final Color bgColor;
+  final Color fgColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(maxWidth: 260),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: bgColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 6),
+          Icon(icon, size: 13, color: fgColor),
+          const SizedBox(width: 5),
           Flexible(
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelMedium,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: fgColor,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ),
         ],

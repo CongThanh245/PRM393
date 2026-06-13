@@ -12,35 +12,37 @@ class PublicationDetailScreen extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Publication Details')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            publication.title,
-            style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.primary,
+      body: SelectionArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              publication.title,
+              style: textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          _MetaGrid(publication: publication),
-          const SizedBox(height: 16),
-          _Section(
-            title: 'Authors',
-            child: Text(
-              publication.authors.isEmpty
-                  ? 'Unknown authors'
-                  : publication.authors.join(', '),
+            const SizedBox(height: 16),
+            _MetaGrid(publication: publication),
+            const SizedBox(height: 16),
+            _Section(
+              title: 'Authors',
+              child: Text(
+                publication.authors.isEmpty
+                    ? 'Unknown authors'
+                    : publication.authors.join(', '),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          _Section(
-            title: 'Abstract',
-            child: Text(
-              publication.abstractText ?? 'No abstract available from OpenAlex.',
+            const SizedBox(height: 12),
+            _Section(
+              title: 'Abstract',
+              child: Text(
+                publication.abstractText ?? 'No abstract available from OpenAlex.',
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

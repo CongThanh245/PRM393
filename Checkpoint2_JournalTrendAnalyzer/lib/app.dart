@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'screens/home_shell.dart';
 
@@ -22,6 +23,11 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
       onSurface: const Color(0xFF0F172A),
     );
 
+    final baseTextTheme = GoogleFonts.firaSansTextTheme().apply(
+      bodyColor: const Color(0xFF0F172A),
+      displayColor: _text,
+    );
+
     return MaterialApp(
       title: 'Journal Trend Analyzer',
       debugShowCheckedModeBanner: false,
@@ -29,23 +35,23 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: colorScheme,
         scaffoldBackgroundColor: _background,
-        fontFamily: 'Fira Sans',
-        textTheme: ThemeData.light().textTheme.apply(
-              bodyColor: const Color(0xFF0F172A),
-              displayColor: _text,
-              fontFamily: 'Fira Sans',
-            ),
-        appBarTheme: const AppBarTheme(
+        textTheme: baseTextTheme,
+        appBarTheme: AppBarTheme(
           centerTitle: false,
           backgroundColor: Colors.white,
           foregroundColor: _text,
           surfaceTintColor: Colors.transparent,
+          titleTextStyle: GoogleFonts.firaSans(
+            textStyle: baseTextTheme.titleLarge,
+            fontWeight: FontWeight.w700,
+            color: _text,
+          ),
         ),
         cardTheme: CardThemeData(
           color: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             side: const BorderSide(color: Color(0xFFE2E8F0)),
           ),
           margin: EdgeInsets.zero,
@@ -54,11 +60,15 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
           filled: true,
           fillColor: Colors.white,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: _primary, width: 2),
           ),
         ),
@@ -66,9 +76,27 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: _accent,
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            textStyle: GoogleFonts.firaSans(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
           ),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: const Color(0xFFEFF6FF),
+          selectedColor: _primary,
+          labelStyle: GoogleFonts.firaSans(fontSize: 13, fontWeight: FontWeight.w500),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          side: BorderSide.none,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        ),
+        tabBarTheme: TabBarThemeData(
+          labelStyle: GoogleFonts.firaSans(fontWeight: FontWeight.w600, fontSize: 14),
+          unselectedLabelStyle: GoogleFonts.firaSans(fontWeight: FontWeight.w400, fontSize: 14),
+          indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: const Color(0xFFE2E8F0),
         ),
       ),
       home: const HomeShell(),

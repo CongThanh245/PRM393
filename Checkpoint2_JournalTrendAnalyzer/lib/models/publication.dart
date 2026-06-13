@@ -66,8 +66,9 @@ class Publication {
   }
 
   static String? _stringValue(Object? value) {
-    if (value is String && value.trim().isNotEmpty) return value.trim();
-    return null;
+    if (value is! String) return null;
+    final stripped = value.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+    return stripped.isNotEmpty ? stripped : null;
   }
 
   static int? _intValue(Object? value) {

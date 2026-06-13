@@ -14,19 +14,20 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
 
+  Widget _buildScreen() => switch (_selectedIndex) {
+        0 => const SearchScreen(),
+        1 => const DashboardScreen(),
+        _ => const AnalyticsScreen(),
+      };
+
   @override
   Widget build(BuildContext context) {
-    final screens = const [
-      SearchScreen(),
-      DashboardScreen(),
-      AnalyticsScreen(),
-    ];
-
     return Scaffold(
-      body: SafeArea(child: screens[_selectedIndex]),
+      body: SafeArea(child: _buildScreen()),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+        onDestinationSelected: (index) =>
+            setState(() => _selectedIndex = index),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.search_outlined),
