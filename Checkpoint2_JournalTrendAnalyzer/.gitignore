@@ -1,10 +1,31 @@
+# Flutter / Dart
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
 build/
 coverage/
+
+# Environment
 .env
+
+# Android
 android/.gradle/
 android/local.properties
+android/key.properties
+*.jks
+*.keystore
 *.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Flutter metadata
+.metadata
+
+# OS
+.DS_Store
+Thumbs.db
