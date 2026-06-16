@@ -19,6 +19,9 @@ const _kQuickTopics = [
   'Bioinformatics',
 ];
 
+const _kDesktopBreak = 700.0;
+const _kSidebarWidth = 320.0;
+
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -52,7 +55,128 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ResearchProvider>();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= _kDesktopBreak) {
+          return _buildDesktopLayout(context, provider);
+        }
+        return _buildMobileLayout(context, provider);
+      },
+    );
+  }
 
+  // ── Desktop ─────────────────────────────────────────────────────────────────
+
+  Widget _buildDesktopLayout(BuildContext context, ResearchProvider provider) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _DesktopSidebar(
+          controller: _controller,
+          provider: provider,
+          onSearch: _search,
+        ),
+        const VerticalDivider(
+          width: 1,
+          thickness: 1,
+          color: Color(0xFFE2E8F0),
+        ),
+        Expanded(child: _buildDesktopResults(context, provider)),
+      ],
+    );
+  }
+
+  Widget _buildDesktopResults(BuildContext context, ResearchProvider provider) {
+    if (provider.status != ResearchStatus.success) {
+      return _buildStateWidget(context, provider);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      provider.keyword,
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${provider.publications.length} publications · sorted by citations',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFF64748B),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth > 700 ? 2 : 1;
+              return GridView.builder(
+                padding: const EdgeInsets.all(20),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  mainAxisExtent: 160,
+                ),
+                itemCount: provider.publications.length,
+                itemBuilder: (context, index) {
+                  final pub = provider.publications[index];
+                  return PublicationCard(
+                    publication: pub,
+                    onTap: () => _pushDetail(context, pub),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStateWidget(BuildContext context, ResearchProvider provider) {
+    return switch (provider.status) {
+      ResearchStatus.idle => const EmptyView(
+          icon: Icons.travel_explore,
+          title: 'Start with a topic',
+          message: 'Enter a keyword to retrieve live OpenAlex publications.',
+        ),
+      ResearchStatus.loading =>
+        const LoadingView(message: 'Fetching OpenAlex publications…'),
+      ResearchStatus.empty => const EmptyView(
+          icon: Icons.search_off,
+          title: 'No publications found',
+          message: 'Try a broader topic or a different keyword.',
+        ),
+      ResearchStatus.error => ErrorView(
+          message: provider.errorMessage ?? 'Something went wrong.',
+          onRetry: () => provider.search(_controller.text),
+        ),
+      ResearchStatus.success => const SizedBox.shrink(),
+    };
+  }
+
+  // ── Mobile ───────────────────────────────────────────────────────────────────
+
+  Widget _buildMobileLayout(BuildContext context, ResearchProvider provider) {
     return CustomScrollView(
       slivers: [
         SliverAppBar(
@@ -87,82 +211,11 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                 ),
                 const SizedBox(height: 16),
-                Semantics(
-                  label: 'Research topic search field',
-                  child: TextField(
-                    controller: _controller,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: _search,
-                    decoration: InputDecoration(
-                      labelText: 'Research topic',
-                      hintText: 'Cybersecurity, data science, blockchain…',
-                      prefixIcon: const Icon(Icons.manage_search),
-                      suffixIcon: IconButton(
-                        tooltip: 'Clear',
-                        onPressed: _controller.clear,
-                        icon: const Icon(Icons.clear),
-                      ),
-                    ),
-                  ),
-                ),
+                _buildSearchField(),
                 const SizedBox(height: 10),
-                SizedBox(
-                  height: 36,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _kQuickTopics.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 6),
-                    itemBuilder: (context, index) {
-                      final topic = _kQuickTopics[index];
-                      final isActive = provider.keyword == topic &&
-                          provider.status == ResearchStatus.success;
-                      return GestureDetector(
-                        onTap: () => _search(topic),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? Theme.of(context).colorScheme.primary
-                                : const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isActive
-                                  ? Theme.of(context).colorScheme.primary
-                                  : const Color(0xFFBFDBFE),
-                            ),
-                          ),
-                          child: Text(
-                            topic,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(
-                                  color: isActive
-                                      ? Colors.white
-                                      : const Color(0xFF1D4ED8),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                _buildQuickTopicsRow(context, provider),
                 const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: provider.status == ResearchStatus.loading
-                        ? null
-                        : () => provider.search(_controller.text),
-                    icon: const Icon(Icons.search),
-                    label: const Text('Search OpenAlex'),
-                  ),
-                ),
+                _buildSearchButton(provider),
                 if (provider.status == ResearchStatus.success)
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
@@ -178,12 +231,12 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
         ),
-        _buildResults(context, provider),
+        _buildMobileResults(context, provider),
       ],
     );
   }
 
-  Widget _buildResults(BuildContext context, ResearchProvider provider) {
+  Widget _buildMobileResults(BuildContext context, ResearchProvider provider) {
     switch (provider.status) {
       case ResearchStatus.idle:
         return const SliverFillRemaining(
@@ -226,18 +279,343 @@ class _SearchScreenState extends State<SearchScreen> {
               final publication = provider.publications[index];
               return PublicationCard(
                 publication: publication,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          PublicationDetailScreen(publication: publication),
-                    ),
-                  );
-                },
+                onTap: () => _pushDetail(context, publication),
               );
             },
           ),
         );
     }
+  }
+
+  // ── Shared helpers ───────────────────────────────────────────────────────────
+
+  Widget _buildSearchField() {
+    return Semantics(
+      label: 'Research topic search field',
+      child: TextField(
+        controller: _controller,
+        textInputAction: TextInputAction.search,
+        onSubmitted: _search,
+        decoration: InputDecoration(
+          labelText: 'Research topic',
+          hintText: 'Cybersecurity, data science, blockchain…',
+          prefixIcon: const Icon(Icons.manage_search),
+          suffixIcon: IconButton(
+            tooltip: 'Clear',
+            onPressed: _controller.clear,
+            icon: const Icon(Icons.clear),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickTopicsRow(BuildContext context, ResearchProvider provider) {
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _kQuickTopics.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final topic = _kQuickTopics[index];
+          final isActive = provider.keyword == topic &&
+              provider.status == ResearchStatus.success;
+          return GestureDetector(
+            onTap: () => _search(topic),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? Theme.of(context).colorScheme.primary
+                    : const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isActive
+                      ? Theme.of(context).colorScheme.primary
+                      : const Color(0xFFBFDBFE),
+                ),
+              ),
+              child: Text(
+                topic,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: isActive
+                          ? Colors.white
+                          : const Color(0xFF1D4ED8),
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSearchButton(ResearchProvider provider) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: provider.status == ResearchStatus.loading
+            ? null
+            : () => provider.search(_controller.text),
+        icon: const Icon(Icons.search),
+        label: const Text('Search OpenAlex'),
+      ),
+    );
+  }
+
+  void _pushDetail(BuildContext context, dynamic publication) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PublicationDetailScreen(publication: publication),
+      ),
+    );
+  }
+}
+
+// ── Desktop Sidebar ───────────────────────────────────────────────────────────
+
+class _DesktopSidebar extends StatelessWidget {
+  const _DesktopSidebar({
+    required this.controller,
+    required this.provider,
+    required this.onSearch,
+  });
+
+  final TextEditingController controller;
+  final ResearchProvider provider;
+  final ValueChanged<String> onSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      width: _kSidebarWidth,
+      child: Container(
+        color: Colors.white,
+        child: SafeArea(
+          right: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Gradient header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primary,
+                      const Color(0xFF2563EB),
+                    ],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.auto_stories,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Journal Trend Analyzer',
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Explore publication trends\nvia OpenAlex open data',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            height: 1.5,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Search controls
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Research topic',
+                        style:
+                            Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF475569),
+                                ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: controller,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: onSearch,
+                        decoration: InputDecoration(
+                          hintText: 'Cybersecurity, machine learning…',
+                          prefixIcon: const Icon(Icons.manage_search, size: 20),
+                          suffixIcon: IconButton(
+                            tooltip: 'Clear',
+                            onPressed: controller.clear,
+                            icon: const Icon(Icons.clear, size: 18),
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Quick topics',
+                        style:
+                            Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF475569),
+                                ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: _kQuickTopics.map((topic) {
+                          final isActive =
+                              provider.keyword == topic &&
+                                  provider.status == ResearchStatus.success;
+                          return GestureDetector(
+                            onTap: () => onSearch(topic),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? colorScheme.primary
+                                    : const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isActive
+                                      ? colorScheme.primary
+                                      : const Color(0xFFBFDBFE),
+                                ),
+                              ),
+                              child: Text(
+                                topic,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: isActive
+                                          ? Colors.white
+                                          : const Color(0xFF1D4ED8),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              provider.status == ResearchStatus.loading
+                                  ? null
+                                  : () => onSearch(controller.text),
+                          icon: provider.status == ResearchStatus.loading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.search),
+                          label: Text(
+                            provider.status == ResearchStatus.loading
+                                ? 'Searching…'
+                                : 'Search OpenAlex',
+                          ),
+                        ),
+                      ),
+                      if (provider.status == ResearchStatus.success) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                colorScheme.primary.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: colorScheme.primary.withValues(alpha: 0.15),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle_outline,
+                                size: 14,
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '${provider.publications.length} publications found',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: colorScheme.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
