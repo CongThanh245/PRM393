@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/research_provider.dart';
+import '../utils/analytics_calculator.dart';
 import '../widgets/empty_view.dart';
 import '../widgets/error_view.dart';
 import '../widgets/loading_view.dart';
@@ -91,35 +93,91 @@ class _SearchScreenState extends State<SearchScreen> {
       return _buildStateWidget(context, provider);
     }
 
+    final pubs = provider.publications;
+    final totalCit = AnalyticsCalculator.totalCitations(pubs);
+    final avgCit =
+        pubs.isEmpty ? 0.0 : totalCit / pubs.length;
+    final yearRange = AnalyticsCalculator.yearRange(pubs);
+    final fmtCompact = NumberFormat.compact();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      provider.keyword,
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          provider.keyword,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.w800,
                                 color: Theme.of(context).colorScheme.primary,
                               ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${pubs.length} publications · sorted by citations',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: const Color(0xFF64748B)),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${provider.publications.length} publications · sorted by citations',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: const Color(0xFF64748B),
-                          ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Quick-stats banner
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.12),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _StatPill(
+                      icon: Icons.format_quote,
+                      label: '${fmtCompact.format(totalCit)} total citations',
                     ),
+                    const SizedBox(width: 16),
+                    _StatPill(
+                      icon: Icons.calculate_outlined,
+                      label: '${avgCit.toStringAsFixed(1)} avg per paper',
+                    ),
+                    if (yearRange != null) ...[
+                      const SizedBox(width: 16),
+                      _StatPill(
+                        icon: Icons.date_range_outlined,
+                        label: '${yearRange.min}–${yearRange.max}',
+                      ),
+                    ],
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -136,9 +194,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   crossAxisSpacing: 12,
                   mainAxisExtent: 160,
                 ),
-                itemCount: provider.publications.length,
+                itemCount: pubs.length,
                 itemBuilder: (context, index) {
-                  final pub = provider.publications[index];
+                  final pub = pubs[index];
                   return PublicationCard(
                     publication: pub,
                     onTap: () => _pushDetail(context, pub),
@@ -372,6 +430,34 @@ class _SearchScreenState extends State<SearchScreen> {
       MaterialPageRoute(
         builder: (_) => PublicationDetailScreen(publication: publication),
       ),
+    );
+  }
+}
+
+// ── Stat pill for desktop result header ──────────────────────────────────────
+
+class _StatPill extends StatelessWidget {
+  const _StatPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: primary),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: primary,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ],
     );
   }
 }

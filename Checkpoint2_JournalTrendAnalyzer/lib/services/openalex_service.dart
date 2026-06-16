@@ -18,9 +18,12 @@ class OpenAlexService {
     'display_name',
     'publication_year',
     'cited_by_count',
+    'counts_by_year',
     'authorships',
     'primary_location',
     'abstract_inverted_index',
+    'concepts',
+    'type',
   ];
 
   final http.Client _client;
@@ -28,7 +31,7 @@ class OpenAlexService {
   Future<List<Publication>> searchWorks(String keyword) async {
     final queryParameters = <String, String>{
       'search': keyword,
-      'per-page': '50',
+      'per-page': '100',
       'sort': 'cited_by_count:desc',
       'select': _selectedFields.join(','),
     };
@@ -54,13 +57,15 @@ class OpenAlexService {
           .map(Publication.fromJson)
           .toList();
     } on SocketException {
-      throw const OpenAlexException('No internet connection. Check your network.');
+      throw const OpenAlexException(
+          'No internet connection. Check your network.');
     } on FormatException {
       throw const OpenAlexException('OpenAlex returned malformed data.');
     } on OpenAlexException {
       rethrow;
     } catch (_) {
-      throw const OpenAlexException('Unable to fetch publications. Try again.');
+      throw const OpenAlexException(
+          'Unable to fetch publications. Try again.');
     }
   }
 
@@ -70,20 +75,23 @@ class OpenAlexService {
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       late final http.Response response;
       try {
-        response = await _client.get(uri).timeout(const Duration(seconds: 30));
+        response =
+            await _client.get(uri).timeout(const Duration(seconds: 30));
       } on TimeoutException {
         if (attempt < maxAttempts - 1) {
           await Future<void>.delayed(Duration(seconds: 1 << attempt));
           continue;
         }
-        throw const OpenAlexException('OpenAlex request timed out. Try again.');
+        throw const OpenAlexException(
+            'OpenAlex request timed out. Try again.');
       }
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return response;
       }
 
-      final shouldRetry = response.statusCode == 429 || response.statusCode >= 500;
+      final shouldRetry =
+          response.statusCode == 429 || response.statusCode >= 500;
       if (shouldRetry && attempt < maxAttempts - 1) {
         await Future<void>.delayed(Duration(seconds: 1 << attempt));
         continue;
@@ -92,7 +100,8 @@ class OpenAlexService {
       throw OpenAlexException(_messageForStatus(response));
     }
 
-    throw const OpenAlexException('Unable to fetch publications. Try again.');
+    throw const OpenAlexException(
+        'Unable to fetch publications. Try again.');
   }
 
   String _messageForStatus(http.Response response) {
@@ -104,7 +113,8 @@ class OpenAlexService {
       403 => 'OpenAlex rate limit was exceeded. Try again later.$suffix',
       404 => 'OpenAlex endpoint or resource was not found.$suffix',
       429 => 'OpenAlex daily limit was exceeded. Try again later.$suffix',
-      >= 500 => 'OpenAlex is temporarily unavailable. Try again later.$suffix',
+      >= 500 =>
+        'OpenAlex is temporarily unavailable. Try again later.$suffix',
       _ => 'OpenAlex returned status ${response.statusCode}.$suffix',
     };
   }

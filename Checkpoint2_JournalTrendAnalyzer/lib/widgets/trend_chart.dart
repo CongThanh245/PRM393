@@ -5,11 +5,20 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/trend_point.dart';
 
 class TrendChart extends StatelessWidget {
-  const TrendChart({required this.points, super.key});
+  const TrendChart({
+    required this.points,
+    this.color,
+    this.unit = 'papers',
+    this.showPeakLine = true,
+    super.key,
+  });
 
   final List<TrendPoint> points;
+  final Color? color;
+  final String unit;
+  final bool showPeakLine;
 
-  static List<int> _labelYears(List<TrendPoint> pts, {int target = 5}) {
+  static List<int> _labelYears(List<TrendPoint> pts, {int target = 6}) {
     if (pts.isEmpty) return [];
     final years = pts.map((p) => p.year).toList();
     if (years.length <= target) return years;
@@ -24,6 +33,8 @@ class TrendChart extends StatelessWidget {
     if (maxY <= 12) return 2;
     if (maxY <= 25) return 5;
     if (maxY <= 60) return 10;
+    if (maxY <= 200) return 25;
+    if (maxY <= 500) return 50;
     return (maxY / 5).ceilToDouble();
   }
 
@@ -40,10 +51,14 @@ class TrendChart extends StatelessWidget {
         .fold<int>(0, (prev, c) => c > prev ? c : prev)
         .toDouble();
 
+    final peakPoint = sortedPoints.length > 1
+        ? sortedPoints.reduce((a, b) => a.count >= b.count ? a : b)
+        : sortedPoints.first;
+
     final yInterval = _yInterval(maxY);
     final chartMaxY = maxY == 0
         ? yInterval
-        : ((maxY / yInterval).ceil() * yInterval).toDouble() + yInterval * 0.5;
+        : ((maxY / yInterval).ceil() * yInterval).toDouble() + yInterval * 0.4;
 
     final minYear = sortedPoints.first.year.toDouble();
     final maxYear = sortedPoints.last.year.toDouble();
@@ -51,116 +66,193 @@ class TrendChart extends StatelessWidget {
     final minX = hasSinglePoint ? minYear - 1 : minYear;
     final maxX = hasSinglePoint ? maxYear + 1 : maxYear;
 
-    final primary = Theme.of(context).colorScheme.primary;
-    final labelStyle = GoogleFonts.firaCode(
+    final primary = color ?? Theme.of(context).colorScheme.primary;
+    final labelStyle = GoogleFonts.spaceGrotesk(
       fontSize: 10,
+      fontWeight: FontWeight.w500,
       color: const Color(0xFF94A3B8),
     );
 
     final showLabels = _labelYears(sortedPoints).toSet();
 
-    return Semantics(
-      label: 'Line chart showing publications grouped by year',
-      child: LineChart(
-        LineChartData(
-          minX: minX,
-          maxX: maxX,
-          minY: 0,
-          maxY: chartMaxY,
-          clipData: const FlClipData.all(),
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            horizontalInterval: yInterval,
-            getDrawingHorizontalLine: (_) => const FlLine(
-              color: Color(0xFFEEF2F7),
-              strokeWidth: 1,
-            ),
-          ),
-          borderData: FlBorderData(
-            show: true,
-            border: const Border(
-              left: BorderSide(color: Color(0xFFE2E8F0)),
-              bottom: BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-          ),
-          titlesData: FlTitlesData(
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 32,
-                interval: yInterval,
-                getTitlesWidget: (value, meta) {
-                  if (value == 0 || value == chartMaxY) {
-                    return const SizedBox.shrink();
-                  }
-                  if (value != value.truncateToDouble()) {
-                    return const SizedBox.shrink();
-                  }
-                  return Text(value.toInt().toString(), style: labelStyle);
-                },
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 28,
-                interval: 1,
-                getTitlesWidget: (value, meta) {
-                  if (value != value.truncateToDouble()) {
-                    return const SizedBox.shrink();
-                  }
-                  final year = value.toInt();
-                  if (!showLabels.contains(year)) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(year.toString(), style: labelStyle),
-                  );
-                },
-              ),
-            ),
-          ),
-          lineBarsData: [
-            LineChartBarData(
-              spots: sortedPoints
-                  .map((p) => FlSpot(p.year.toDouble(), p.count.toDouble()))
-                  .toList(),
-              isCurved: sortedPoints.length > 2,
-              curveSmoothness: 0.3,
-              color: primary,
-              barWidth: 2,
-              dotData: FlDotData(
-                show: true,
-                getDotPainter: (spot, percent, bar, index) =>
-                    FlDotCirclePainter(
-                  radius: 2.5,
-                  color: Colors.white,
+    return LineChart(
+      LineChartData(
+        minX: minX,
+        maxX: maxX,
+        minY: 0,
+        maxY: chartMaxY,
+        clipData: const FlClipData.all(),
+        extraLinesData: showPeakLine && sortedPoints.length > 2
+            ? ExtraLinesData(
+                verticalLines: [
+                  VerticalLine(
+                    x: peakPoint.year.toDouble(),
+                    color: primary.withValues(alpha: 0.28),
+                    strokeWidth: 1.5,
+                    dashArray: [5, 5],
+                    label: VerticalLineLabel(
+                      show: true,
+                      labelResolver: (_) => 'Peak ${peakPoint.year}',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: primary.withValues(alpha: 0.6),
+                      ),
+                      alignment: Alignment.topCenter,
+                      padding: const EdgeInsets.only(top: 4),
+                    ),
+                  ),
+                ],
+              )
+            : null,
+        lineTouchData: LineTouchData(
+          enabled: true,
+          handleBuiltInTouches: true,
+          getTouchedSpotIndicator: (barData, spotIndexes) {
+            return spotIndexes.map((_) {
+              return TouchedSpotIndicatorData(
+                FlLine(
+                  color: primary.withValues(alpha: 0.35),
                   strokeWidth: 1.5,
-                  strokeColor: primary,
+                  dashArray: [4, 4],
                 ),
-              ),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    primary.withValues(alpha: 0.18),
-                    primary.withValues(alpha: 0.0),
-                  ],
+                FlDotData(
+                  getDotPainter: (spot, percent, bar, idx) =>
+                      FlDotCirclePainter(
+                    radius: 6,
+                    color: primary,
+                    strokeWidth: 2.5,
+                    strokeColor: Colors.white,
+                  ),
                 ),
+              );
+            }).toList();
+          },
+          touchTooltipData: LineTouchTooltipData(
+            tooltipRoundedRadius: 8,
+            tooltipPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            getTooltipItems: (spots) => spots.map((spot) {
+              return LineTooltipItem(
+                '${spot.x.toInt()}',
+                GoogleFonts.spaceGrotesk(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+                children: [
+                  TextSpan(
+                    text: '\n${spot.y.toInt()} $unit',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xCCFFFFFF),
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: yInterval,
+          getDrawingHorizontalLine: (_) => const FlLine(
+            color: Color(0xFFEEF2FF),
+            strokeWidth: 1,
+          ),
+        ),
+        borderData: FlBorderData(
+          show: true,
+          border: const Border(
+            left: BorderSide(color: Color(0xFFDDE3F5)),
+            bottom: BorderSide(color: Color(0xFFDDE3F5)),
+          ),
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 38,
+              interval: yInterval,
+              getTitlesWidget: (value, meta) {
+                if (value == 0 || value == chartMaxY) {
+                  return const SizedBox.shrink();
+                }
+                if (value != value.truncateToDouble()) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Text(
+                    value.toInt().toString(),
+                    style: labelStyle,
+                    textAlign: TextAlign.right,
+                  ),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: 1,
+              getTitlesWidget: (value, meta) {
+                if (value != value.truncateToDouble()) {
+                  return const SizedBox.shrink();
+                }
+                final year = value.toInt();
+                if (!showLabels.contains(year)) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(year.toString(), style: labelStyle),
+                );
+              },
+            ),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: sortedPoints
+                .map((p) => FlSpot(p.year.toDouble(), p.count.toDouble()))
+                .toList(),
+            isCurved: sortedPoints.length > 2,
+            curveSmoothness: 0.3,
+            color: primary,
+            barWidth: 2.5,
+            dotData: FlDotData(
+              show: sortedPoints.length <= 15,
+              getDotPainter: (spot, percent, bar, index) =>
+                  FlDotCirclePainter(
+                radius: 3,
+                color: primary,
+                strokeWidth: 2,
+                strokeColor: Colors.white,
               ),
             ),
-          ],
-        ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  primary.withValues(alpha: 0.18),
+                  primary.withValues(alpha: 0.01),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

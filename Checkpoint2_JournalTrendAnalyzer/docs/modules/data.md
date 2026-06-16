@@ -15,10 +15,11 @@
 ```
 GET https://api.openalex.org/works
   ?search=<keyword>
-  &per-page=50
+  &per-page=100
   &sort=cited_by_count:desc
   &select=id,doi,title,display_name,publication_year,cited_by_count,
-          authorships,primary_location,abstract_inverted_index
+          authorships,primary_location,abstract_inverted_index,type,
+          concepts,institutions_distinct_count,countries_distinct_count
   &api_key=<env:OPENALEX_API_KEY>
 ```
 
@@ -52,15 +53,17 @@ GET https://api.openalex.org/works
 
 ### `lib/models/publication.dart`
 
-**Summary:** Core domain model. Parses OpenAlex JSON with several normalization steps: HTML stripping, inverted-index abstract reconstruction, and author deduplication.
+**Summary:** Core domain model. Parses OpenAlex JSON with several normalization steps: HTML stripping, inverted-index abstract reconstruction, and author/affiliation extraction.
 **Complexity:** medium | **Tags:** model, domain
 
-**Fields:** `id`, `doi`, `title`, `publicationYear`, `citedByCount`, `authors`, `journalName`, `abstractText`
+**Fields:** `id`, `doi`, `title`, `publicationYear`, `citedByCount`, `authors`, `journalName`, `abstractText`, `workType`, `concepts`, `institutionNames`, `countryNames`
 
 **Notable parsing quirks:**
 - `display_name` may contain `<i>`, `<b>` tags — stripped via `replaceAll(RegExp(r'<[^>]*>'), '')`
 - `abstract_inverted_index` is a `{word: [positions]}` map — delegated to `parseAbstractInvertedIndex()`
 - Venue extracted from `primary_location.source.display_name` with fallback to legacy `host_venue.display_name`
+- `concepts` parsed from OpenAlex concept objects for keyword analytics
+- Institution and country names extracted from `authorships[*].institutions` and `authorships[*].countries`
 
 **Dependencies:**
 - Imports: `abstract_parser.dart`
@@ -70,7 +73,7 @@ GET https://api.openalex.org/works
 
 ### `lib/models/dashboard_summary.dart`
 
-**Summary:** Immutable aggregate holding all KPI values for the dashboard screen: counts, averages, top items, and trend series.
+**Summary:** Immutable aggregate holding all KPI values for the dashboard screen.
 **Complexity:** low | **Tags:** model, aggregate
 
 **Fields:** `totalPublications`, `averageCitations`, `mostActiveYear`, `trends`, `topJournal`, `topAuthor`, `mostInfluentialPaper`
@@ -79,21 +82,56 @@ GET https://api.openalex.org/works
 
 ### `lib/models/trend_point.dart`
 
-**Summary:** `{year: int, count: int}` value object used as x/y data for the trend line chart.
+**Summary:** `{year: int, count: int}` value object used as x/y data for line charts.
 **Complexity:** low
 
 ---
 
 ### `lib/models/journal_stat.dart`
 
-**Summary:** `{name: String, publicationCount: int}` value object for journal leaderboard rows.
+**Summary:** `{name: String, publicationCount: int}` for journal leaderboard rows.
 **Complexity:** low
 
 ---
 
 ### `lib/models/author_stat.dart`
 
-**Summary:** `{name: String, publicationCount: int}` value object for author leaderboard rows.
+**Summary:** `{name: String, publicationCount: int}` for author leaderboard rows.
+**Complexity:** low
+
+---
+
+### `lib/models/keyword_stat.dart`
+
+**Summary:** `{name: String, count: int}` for concept/keyword frequency rows.
+**Complexity:** low
+
+---
+
+### `lib/models/country_stat.dart`
+
+**Summary:** `{name: String, count: int}` for country publication-count rows.
+**Complexity:** low
+
+---
+
+### `lib/models/institution_stat.dart`
+
+**Summary:** `{name: String, count: int}` for institution publication-count rows.
+**Complexity:** low
+
+---
+
+### `lib/models/author_impact.dart`
+
+**Summary:** `{name: String, publicationCount: int, totalCitations: int}` for scatter-plot author-impact analysis (output vs impact axes).
+**Complexity:** low
+
+---
+
+### `lib/models/year_count.dart`
+
+**Summary:** `{year: int, count: int}` alias used in citation trend computation (mirrors `TrendPoint` semantically but for citation grouping).
 **Complexity:** low
 
 ## Layer Relationships

@@ -49,6 +49,65 @@ class _PublicationCardState extends State<PublicationCard> {
     final citFg = _citationFg(pub.citedByCount);
     final bar = _accentBar(pub.citedByCount);
 
+    final content = Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            pub.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                  color: const Color(0xFF0F172A),
+                ),
+          ),
+          if (pub.authors.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              pub.authors.take(3).join(', ') +
+                  (pub.authors.length > 3 ? ' et al.' : ''),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF64748B),
+                    fontStyle: FontStyle.italic,
+                  ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 5,
+            runSpacing: 5,
+            children: [
+              _Chip(
+                icon: Icons.calendar_today_outlined,
+                label: pub.publicationYear?.toString() ?? 'N/A',
+                bgColor: const Color(0xFFEFF6FF),
+                fgColor: const Color(0xFF1D4ED8),
+              ),
+              _Chip(
+                icon: Icons.format_quote,
+                label: '$citationText citations',
+                bgColor: citBg,
+                fgColor: citFg,
+              ),
+              if (pub.journalName != null)
+                _Chip(
+                  icon: Icons.menu_book_outlined,
+                  label: pub.journalName!,
+                  bgColor: const Color(0xFFF5F3FF),
+                  fgColor: const Color(0xFF6D28D9),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+
     return Semantics(
       button: true,
       label: 'Open publication details',
@@ -90,89 +149,26 @@ class _PublicationCardState extends State<PublicationCard> {
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
               onTap: widget.onTap,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Left accent bar
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 4,
-                    decoration: BoxDecoration(
-                      color: bar,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(10),
-                        bottomLeft: Radius.circular(10),
+              // IntrinsicHeight lets CrossAxisAlignment.stretch work when
+              // the card is inside a ListView with unbounded height.
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 4,
+                      decoration: BoxDecoration(
+                        color: bar,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(10),
+                          bottomLeft: Radius.circular(10),
+                        ),
                       ),
                     ),
-                  ),
-                  // Content
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            pub.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.35,
-                                  color: const Color(0xFF0F172A),
-                                ),
-                          ),
-                          if (pub.authors.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              pub.authors.take(3).join(', ') +
-                                  (pub.authors.length > 3 ? ' et al.' : ''),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: const Color(0xFF64748B),
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                            ),
-                          ],
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 5,
-                            runSpacing: 5,
-                            children: [
-                              _Chip(
-                                icon: Icons.calendar_today_outlined,
-                                label: pub.publicationYear?.toString() ?? 'N/A',
-                                bgColor: const Color(0xFFEFF6FF),
-                                fgColor: const Color(0xFF1D4ED8),
-                              ),
-                              _Chip(
-                                icon: Icons.format_quote,
-                                label: '$citationText citations',
-                                bgColor: citBg,
-                                fgColor: citFg,
-                              ),
-                              if (pub.journalName != null)
-                                _Chip(
-                                  icon: Icons.menu_book_outlined,
-                                  label: pub.journalName!,
-                                  bgColor: const Color(0xFFF5F3FF),
-                                  fgColor: const Color(0xFF6D28D9),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                    Expanded(child: content),
+                  ],
+                ),
               ),
             ),
           ),
@@ -181,6 +177,7 @@ class _PublicationCardState extends State<PublicationCard> {
     );
   }
 }
+
 
 class _Chip extends StatelessWidget {
   const _Chip({

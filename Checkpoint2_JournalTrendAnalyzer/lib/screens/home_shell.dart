@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'analytics_screen.dart';
 import 'dashboard_screen.dart';
 import 'search_screen.dart';
+import 'trends_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -19,6 +20,7 @@ class _HomeShellState extends State<HomeShell> {
   Widget _buildScreen() => switch (_selectedIndex) {
         0 => const SearchScreen(),
         1 => const DashboardScreen(),
+        2 => const TrendsScreen(),
         _ => const AnalyticsScreen(),
       };
 
@@ -36,7 +38,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Widget _buildDesktop(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final primary = Theme.of(context).colorScheme.primary;
     return Scaffold(
       body: Row(
         children: [
@@ -45,35 +47,19 @@ class _HomeShellState extends State<HomeShell> {
             onDestinationSelected: _onSelect,
             minWidth: 80,
             labelType: NavigationRailLabelType.all,
-            backgroundColor: Colors.white,
-            indicatorColor: colorScheme.primary.withValues(alpha: 0.1),
-            selectedIconTheme: IconThemeData(color: colorScheme.primary),
-            unselectedIconTheme: const IconThemeData(
-              color: Color(0xFF94A3B8),
-              size: 22,
-            ),
-            selectedLabelTextStyle: TextStyle(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-            ),
-            unselectedLabelTextStyle: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 11,
-            ),
             leading: Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: Container(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: colorScheme.primary,
+                  color: primary,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: colorScheme.primary.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
+                      color: primary.withValues(alpha: 0.28),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
@@ -91,22 +77,23 @@ class _HomeShellState extends State<HomeShell> {
                 label: Text('Search'),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.query_stats_outlined),
-                selectedIcon: Icon(Icons.query_stats),
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard),
                 label: Text('Dashboard'),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.leaderboard_outlined),
-                selectedIcon: Icon(Icons.leaderboard),
-                label: Text('Analytics'),
+                icon: Icon(Icons.trending_up_outlined),
+                selectedIcon: Icon(Icons.trending_up),
+                label: Text('Trends'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.bar_chart_outlined),
+                selectedIcon: Icon(Icons.bar_chart),
+                label: Text('Rankings'),
               ),
             ],
           ),
-          const VerticalDivider(
-            width: 1,
-            thickness: 1,
-            color: Color(0xFFE2E8F0),
-          ),
+          const VerticalDivider(width: 1, thickness: 1),
           Expanded(child: _buildScreen()),
         ],
       ),
@@ -116,26 +103,36 @@ class _HomeShellState extends State<HomeShell> {
   Widget _buildMobile(BuildContext context) {
     return Scaffold(
       body: SafeArea(child: _buildScreen()),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _onSelect,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.query_stats_outlined),
-            selectedIcon: Icon(Icons.query_stats),
-            label: 'Dashboard',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.leaderboard_outlined),
-            selectedIcon: Icon(Icons.leaderboard),
-            label: 'Analytics',
-          ),
-        ],
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Color(0xFFDDE3F5))),
+        ),
+        child: NavigationBar(
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: _onSelect,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.search_outlined),
+              selectedIcon: Icon(Icons.search),
+              label: 'Search',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.trending_up_outlined),
+              selectedIcon: Icon(Icons.trending_up),
+              label: 'Trends',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bar_chart_outlined),
+              selectedIcon: Icon(Icons.bar_chart),
+              label: 'Rankings',
+            ),
+          ],
+        ),
       ),
     );
   }
