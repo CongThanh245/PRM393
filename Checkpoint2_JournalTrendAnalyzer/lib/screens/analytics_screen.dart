@@ -50,7 +50,7 @@ class AnalyticsScreen extends StatelessWidget {
       length: 5,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Rankings · ${provider.keyword}'),
+          title: Text('Keywords · ${provider.keyword}'),
           actions: [
             IconButton(
               icon: const Icon(Icons.download_outlined),

@@ -54,10 +54,6 @@ class TrendsScreen extends StatelessWidget {
 
     return CustomScrollView(
       slivers: [
-        SliverAppBar(
-          pinned: true,
-          title: Text('Trends · ${provider.keyword}'),
-        ),
         SliverPadding(
           padding:
               const EdgeInsets.fromLTRB(_kGap, _kGap, _kGap, 0),

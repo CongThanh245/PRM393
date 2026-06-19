@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -39,30 +38,6 @@ class DashboardScreen extends StatelessWidget {
     Color(0xFFEA580C),
     Color(0xFF64748B),
   ];
-
-  void _exportCsv(BuildContext context, ResearchProvider provider) {
-    final csv = AnalyticsCalculator.exportCsv(
-      provider.filteredPublications,
-      provider.keyword,
-    );
-    Clipboard.setData(ClipboardData(text: csv));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_outline,
-                color: Colors.white, size: 16),
-            const SizedBox(width: 8),
-            Text(
-                'CSV copied — ${provider.filteredPublications.length} papers'),
-          ],
-        ),
-        backgroundColor: const Color(0xFF059669),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -185,18 +160,6 @@ class DashboardScreen extends StatelessWidget {
 
     return CustomScrollView(
       slivers: [
-        SliverAppBar(
-          pinned: true,
-          title: Text('Dashboard · ${provider.keyword}'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.download_outlined),
-              tooltip: 'Export CSV to clipboard',
-              onPressed: () => _exportCsv(context, provider),
-            ),
-            const SizedBox(width: 4),
-          ],
-        ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(
               _kGap, _kGap, _kGap, 0),
@@ -213,9 +176,7 @@ class DashboardScreen extends StatelessWidget {
                     final isMed = w > 580;
 
                     // ── Year filter header ─────────────────────────────────
-                    final filterSection = _FilterHeader(
-                      onExport: () => _exportCsv(context, provider),
-                    );
+                    const filterSection = _FilterHeader();
 
                     // ── KPI metric grid ────────────────────────────────────
                     const targetTileH = 100.0;
@@ -407,8 +368,7 @@ class DashboardScreen extends StatelessWidget {
 // ── Filter header row ─────────────────────────────────────────────────────────
 
 class _FilterHeader extends StatelessWidget {
-  const _FilterHeader({required this.onExport});
-  final VoidCallback onExport;
+  const _FilterHeader();
 
   @override
   Widget build(BuildContext context) {

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'analytics_screen.dart';
-import 'dashboard_screen.dart';
+import 'insights_screen.dart';
+import 'profile_screen.dart';
 import 'search_screen.dart';
-import 'trends_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -18,10 +18,10 @@ class _HomeShellState extends State<HomeShell> {
   static const _kDesktopBreak = 800.0;
 
   Widget _buildScreen() => switch (_selectedIndex) {
-        0 => const SearchScreen(),
-        1 => const DashboardScreen(),
-        2 => const TrendsScreen(),
-        _ => const AnalyticsScreen(),
+        0 => SearchScreen(onSearchSuccess: () => _onSelect(2)),
+        1 => const InsightsScreen(),
+        2 => const AnalyticsScreen(),
+        _ => const ProfileScreen(),
       };
 
   void _onSelect(int index) => setState(() => _selectedIndex = index);
@@ -79,17 +79,17 @@ class _HomeShellState extends State<HomeShell> {
               NavigationRailDestination(
                 icon: Icon(Icons.dashboard_outlined),
                 selectedIcon: Icon(Icons.dashboard),
-                label: Text('Dashboard'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.trending_up_outlined),
-                selectedIcon: Icon(Icons.trending_up),
-                label: Text('Trends'),
+                label: Text('Insights'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.bar_chart_outlined),
                 selectedIcon: Icon(Icons.bar_chart),
-                label: Text('Rankings'),
+                label: Text('Keywords'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: Text('Profile'),
               ),
             ],
           ),
@@ -119,17 +119,17 @@ class _HomeShellState extends State<HomeShell> {
             NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
               selectedIcon: Icon(Icons.dashboard),
-              label: 'Dashboard',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.trending_up_outlined),
-              selectedIcon: Icon(Icons.trending_up),
-              label: 'Trends',
+              label: 'Insights',
             ),
             NavigationDestination(
               icon: Icon(Icons.bar_chart_outlined),
               selectedIcon: Icon(Icons.bar_chart),
-              label: 'Rankings',
+              label: 'Keywords',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Profile',
             ),
           ],
         ),

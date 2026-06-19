@@ -25,7 +25,9 @@ const _kDesktopBreak = 700.0;
 const _kSidebarWidth = 320.0;
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({this.onSearchSuccess, super.key});
+
+  final VoidCallback? onSearchSuccess;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -49,9 +51,14 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  void _search(String topic) {
+  Future<void> _search(String topic) async {
     _controller.text = topic;
-    context.read<ResearchProvider>().search(topic);
+    final provider = context.read<ResearchProvider>();
+    await provider.search(topic);
+    if (!mounted) return;
+    if (provider.status == ResearchStatus.success) {
+      widget.onSearchSuccess?.call();
+    }
   }
 
   @override
@@ -226,7 +233,7 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       ResearchStatus.error => ErrorView(
           message: provider.errorMessage ?? 'Something went wrong.',
-          onRetry: () => provider.search(_controller.text),
+          onRetry: () => _search(_controller.text),
         ),
       ResearchStatus.success => const SizedBox.shrink(),
     };
@@ -243,7 +250,7 @@ class _SearchScreenState extends State<SearchScreen> {
           actions: [
             IconButton(
               tooltip: 'Search topic',
-              onPressed: () => provider.search(_controller.text),
+              onPressed: () => _search(_controller.text),
               icon: const Icon(Icons.search),
             ),
           ],
@@ -324,7 +331,7 @@ class _SearchScreenState extends State<SearchScreen> {
           hasScrollBody: false,
           child: ErrorView(
             message: provider.errorMessage ?? 'Something went wrong.',
-            onRetry: () => provider.search(_controller.text),
+            onRetry: () => _search(_controller.text),
           ),
         );
       case ResearchStatus.success:
@@ -418,7 +425,7 @@ class _SearchScreenState extends State<SearchScreen> {
       child: ElevatedButton.icon(
         onPressed: provider.status == ResearchStatus.loading
             ? null
-            : () => provider.search(_controller.text),
+            : () => _search(_controller.text),
         icon: const Icon(Icons.search),
         label: const Text('Search OpenAlex'),
       ),
