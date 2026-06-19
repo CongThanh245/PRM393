@@ -218,14 +218,18 @@ class _DonutChartState extends State<DonutChart> {
           );
         }
 
-        // Narrow: chart on top, legend centered below
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(child: pieWidget),
-            const SizedBox(height: 16),
-            Center(child: legendColumn),
-          ],
+        // Narrow: chart on top, legend centered below. Scrollable because the
+        // combined intrinsic height (chart + all legend rows) can exceed the
+        // fixed chart-card height on screens too narrow for the side-by-side row.
+        return SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(child: pieWidget),
+              const SizedBox(height: 16),
+              Center(child: legendColumn),
+            ],
+          ),
         );
       },
     );
