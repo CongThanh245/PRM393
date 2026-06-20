@@ -10,6 +10,7 @@ import '../models/keyword_stat.dart';
 import '../models/publication.dart';
 import '../models/trend_point.dart';
 import '../repositories/publication_repository.dart';
+import '../services/openalex_service.dart';
 import '../utils/analytics_calculator.dart';
 
 enum ResearchStatus { idle, loading, success, empty, error }
@@ -26,6 +27,9 @@ class ResearchProvider extends ChangeNotifier {
   List<Publication> _publications = const [];
   int? _yearFrom;
   int? _yearTo;
+  int _page = 1;
+  int _totalCount = 0;
+  bool _isLoadingMore = false;
 
   ResearchStatus get status => _status;
   String get keyword => _keyword;
@@ -34,6 +38,9 @@ class ResearchProvider extends ChangeNotifier {
   int? get yearFrom => _yearFrom;
   int? get yearTo => _yearTo;
   bool get hasYearFilter => _yearFrom != null || _yearTo != null;
+  int get totalCount => _totalCount;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMore => _publications.length < _totalCount;
 
   List<Publication> get filteredPublications {
     if (!hasYearFilter) return _publications;
@@ -91,17 +98,54 @@ class ResearchProvider extends ChangeNotifier {
     _errorMessage = null;
     _yearFrom = null;
     _yearTo = null;
+    _page = 1;
+    _totalCount = 0;
     notifyListeners();
 
     try {
-      final results = await _repository.search(nextKeyword);
-      _publications = results;
-      _status =
-          results.isEmpty ? ResearchStatus.empty : ResearchStatus.success;
+      final result = await _repository.search(nextKeyword, page: 1);
+      _publications = result.publications;
+      _totalCount = result.totalCount;
+      _status = result.publications.isEmpty
+          ? ResearchStatus.empty
+          : ResearchStatus.success;
     } catch (error) {
       _status = ResearchStatus.error;
-      _errorMessage = error.toString();
+      _errorMessage = _messageFor(error);
     }
     notifyListeners();
+  }
+
+  /// Fetches the next page of results for the current keyword and appends
+  /// it to [publications]. No-ops if already loading, on a non-success
+  /// search, or once every match has been fetched.
+  Future<void> loadMore() async {
+    if (_isLoadingMore || !hasMore || _status != ResearchStatus.success) {
+      return;
+    }
+
+    final keywordAtRequest = _keyword;
+    final nextPage = _page + 1;
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final result = await _repository.search(keywordAtRequest, page: nextPage);
+      if (keywordAtRequest == _keyword) {
+        _publications = [..._publications, ...result.publications];
+        _totalCount = result.totalCount;
+        _page = nextPage;
+      }
+    } catch (_) {
+      // Keep existing results visible; the user can retry via the button.
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  String _messageFor(Object error) {
+    if (error is OpenAlexException) return error.message;
+    return 'Unable to fetch publications. Try again.';
   }
 }
