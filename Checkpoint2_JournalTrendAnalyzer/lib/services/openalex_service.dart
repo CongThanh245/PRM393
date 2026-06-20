@@ -65,9 +65,9 @@ class OpenAlexService {
           : <Publication>[];
 
       final meta = decoded['meta'];
-      final totalCount = meta is Map<String, dynamic>
-          ? (meta['count'] as num?)?.toInt() ?? publications.length
-          : publications.length;
+      final metaCount = meta is Map<String, dynamic> ? meta['count'] : null;
+      final totalCount =
+          metaCount is num ? metaCount.toInt() : publications.length;
 
       return OpenAlexPage(publications: publications, totalCount: totalCount);
     } on SocketException {

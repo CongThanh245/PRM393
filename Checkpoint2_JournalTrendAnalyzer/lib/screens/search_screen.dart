@@ -107,7 +107,6 @@ class _SearchScreenState extends State<SearchScreen> {
         pubs.isEmpty ? 0.0 : totalCit / pubs.length;
     final yearRange = AnalyticsCalculator.yearRange(pubs);
     final fmtCompact = NumberFormat.compact();
-    final fmtDecimal = NumberFormat.decimalPattern();
     final hasMoreToLoad = provider.hasMore;
 
     return Column(
@@ -136,9 +135,8 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          hasMoreToLoad
-                              ? '${fmtDecimal.format(pubs.length)} of ${fmtDecimal.format(provider.totalCount)} publications · sorted by citations'
-                              : '${fmtDecimal.format(pubs.length)} publications · sorted by citations',
+                          provider.resultsSummary(
+                              suffix: ' · sorted by citations'),
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -295,9 +293,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
                     child: Text(
-                      provider.hasMore
-                          ? '${provider.publications.length} of ${provider.totalCount} publications found for "${provider.keyword}"'
-                          : '${provider.publications.length} publications found for "${provider.keyword}"',
+                      provider.resultsSummary(
+                          suffix: ' found for "${provider.keyword}"'),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.primary,
                           ),
@@ -746,9 +743,7 @@ class _DesktopSidebar extends StatelessWidget {
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  provider.hasMore
-                                      ? '${provider.publications.length} of ${provider.totalCount} publications found'
-                                      : '${provider.publications.length} publications found',
+                                  provider.resultsSummary(suffix: ' found'),
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall

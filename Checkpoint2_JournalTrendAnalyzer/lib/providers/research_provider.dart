@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 import '../models/author_impact.dart';
 import '../models/author_stat.dart';
@@ -41,6 +42,17 @@ class ResearchProvider extends ChangeNotifier {
   int get totalCount => _totalCount;
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMore => _publications.length < _totalCount;
+
+  /// "`N` publications" once everything matching is loaded, or
+  /// "`N` of `M` publications" while more pages remain to be fetched via
+  /// [loadMore]. Shared by every screen that surfaces a result count so the
+  /// wording (and number formatting) can't drift between them.
+  String resultsSummary({String suffix = ''}) {
+    final fmt = NumberFormat.decimalPattern();
+    final loaded = fmt.format(_publications.length);
+    final noun = suffix.isEmpty ? 'publications' : 'publications$suffix';
+    return hasMore ? '$loaded of ${fmt.format(_totalCount)} $noun' : '$loaded $noun';
+  }
 
   List<Publication> get filteredPublications {
     if (!hasYearFilter) return _publications;
@@ -132,7 +144,10 @@ class ResearchProvider extends ChangeNotifier {
     try {
       final result = await _repository.search(keywordAtRequest, page: nextPage);
       if (keywordAtRequest == _keyword) {
-        _publications = [..._publications, ...result.publications];
+        // Mutate in place instead of spreading into a new list — appending
+        // one page at a time would otherwise re-copy every previously
+        // loaded publication on each call to loadMore().
+        _publications.addAll(result.publications);
         _totalCount = result.totalCount;
         _page = nextPage;
       }
